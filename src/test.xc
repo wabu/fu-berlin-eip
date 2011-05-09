@@ -97,7 +97,7 @@ void tst_run_debug_output(streaming chanend c_out) {
         } else if (i==VID_NEW_LINE) {
             printf("\n");
         } else {
-            printf("%x", i);
+            printf("%02x", i);
         }
     }
 }

@@ -1,15 +1,17 @@
 #include <xs1.h>
 
 #include "test.h"
+#include "downsample.h"
 
 int main(void) {
-    streaming chan vid;
+    streaming chan vid, output;
     par {
-        tst_setup(16,16);
+        tst_setup(64,64);
     }
     par {
         tst_run_debug_video(vid);
-        tst_run_debug_output(vid);
+        downsample(4, vid, output);
+        tst_run_debug_output(output);
     }
 
     return 0;
