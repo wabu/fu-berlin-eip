@@ -54,7 +54,9 @@ void downsample(int n, streaming chanend c_in, streaming chanend c_out) {
             }
             x=0;
         } else if (t==NewFrame) {
-            j=n-1; // hack to assure that buffer is outputed on next NewLine
+            output_buffer(buffer, x, n, c_out);
+            j=-1;
+            i=0;
             c_out <: VID_NEW_FRAME;
         }
     }
