@@ -8,12 +8,11 @@
 
 int main(void) {
     streaming chan vid, output;
-    tst_setup(16,16);
+    tst_setup(64,64);
 
     par {
-        blink4();
         tst_run_debug_video(vid);
-        downsample(2, vid, output);
+        downsample(4, vid, output);
         tst_run_debug_output(output);
     }
 

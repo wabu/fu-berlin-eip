@@ -3,9 +3,9 @@
 #include <string.h>
 
 enum PixelType {
-    NewPixel,
     NewFrame,
     NewLine,
+    NewPixel,
 };
 
 {int, int} read_pixel(int &off, int &data, streaming chanend c_in) {
@@ -22,42 +22,52 @@ enum PixelType {
     return {(data >> off) & 0xff, NewPixel};
 }
 
-void output_buffer(int buffer[], int size, int n, streaming chanend c_out) {
-    c_out <: VID_NEW_LINE;
-    for (int i=0; i<size; i++) {
-        c_out <: buffer[i]/(n*n);
+void downsample(int n, streaming chanend c_in, streaming chanend c_out) {
+    int p, t, data, off = 0; 
+
+    // idea: in each line, sum up n pixel values in a buffer postion
+    //       on the n-th line at each n-th pixel, output the downsampled value and clear the buffer position
+
+    int buffer[VID_WIDTH/*/n*/]; // no dynamic memory ... :/
+
+    int x=0; // offset for downsampled buffer
+    int i=0; // counter for pixels currently in buffer at position x for the current line
+    int j=0; // counter for lines currently in buffer
+
+    for (int i=0; i<VID_WIDTH; i++) {
         buffer[i]=0;
     }
-}
-
-void downsample(int n, streaming chanend c_in, streaming chanend c_out) {
-    int p, t, data, off = 0, x=0, j=0, i=0;
-    int buffer[VID_WIDTH];
-
-    // FIXME: clear buffer
 
     while (1) {
         {p, t} = read_pixel(off, data, c_in);
 
-        if (t==NewPixel) {
+        switch (t) {
+        case NewPixel:
             buffer[x] += p;
-
             if (++i==n) {
+                if (j==0) { // we sumed nxn pixels in buffer[x]
+                    c_out <: buffer[x]/(n*n);
+                    buffer[x] = 0;
+                }
                 x++;
                 i=0;
             }
-        } else if (t==NewLine) {
+            break;
+
+        case NewLine:
             if (++j==n) {
                 j=0;
-                i=0;
-                output_buffer(buffer, x, n, c_out);
+                c_out <: VID_NEW_LINE;
             }
-            x=0;
-        } else if (t==NewFrame) {
-            output_buffer(buffer, x, n, c_out);
-            j=-1;
             i=0;
+            x=0;
+
+            break;
+
+        case NewFrame:
+            j=0;
             c_out <: VID_NEW_FRAME;
+            break;
         }
     }
 }
