@@ -18,14 +18,22 @@ void update_frame() {
     rx+=dx;
     ry+=dy;
 
-    if (rx+hw >= width)
+    if (rx+hw >= width) {
         dx=-dx;
-    if (rx-hw <= 0)
+        rx = width-hw-1;
+    }
+    if (rx-hw <= 0) {
         dx=-dx;
-    if (ry+hh >= height)
+        rx = hw;
+    }
+    if (ry+hh >= height) {
         dy=-dy;
-    if (ry-hh <= 0)
+        ry = height-hh-1;
+    }
+    if (ry-hh <= 0) {
         dy=-dy;
+        ry = hh;
+    }
 }
 
 int get_color(int x, int y) {

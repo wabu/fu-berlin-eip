@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 #include "test.h"
+#include "blink.h"
 #include "downsample.h"
 
 int main(void) {
