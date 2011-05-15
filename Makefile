@@ -1,5 +1,5 @@
 RM = rm
-TARGET_BOARD = -target=XC-1
+TARGET_BOARD = -target=XK-1
 XCCFLAGS = -O0 -g -Wall $(TARGET_BOARD)
 XCC = xcc
 XC_SRCS = $(wildcard *.xc)
