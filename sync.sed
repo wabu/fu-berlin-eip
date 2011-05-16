@@ -1,4 +1,4 @@
-#!/usr/bin/env sed -f
+#!/bin/sed -f
 :a
   N
   /\n\s*$/{
