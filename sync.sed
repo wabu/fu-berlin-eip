@@ -1,7 +1,7 @@
+#!/usr/bin/env sed -f
 :a
   N
   /\n\s*$/{
-    p
     n
   }
   ba
