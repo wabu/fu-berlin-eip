@@ -46,7 +46,7 @@ void downsample(const int n, streaming chanend c_in, streaming chanend c_out) {
             buffer[x] += p;
             if (++col_sw==n) {
                 if (row_sw==n) { // we sumed nxn pixels in buffer[x]
-                    c_out <: buffer[x]/(n*n);
+                    c_out <: (char)(buffer[x]/(n*n));
                     buffer[x] = 0;
                 }
                 x++;
@@ -65,7 +65,7 @@ void downsample(const int n, streaming chanend c_in, streaming chanend c_out) {
             break;
 
         case NewFrame:
-            row_sw=0;
+            row_sw=4;
             c_out <: VID_NEW_FRAME;
             break;
         }

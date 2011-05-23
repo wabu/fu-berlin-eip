@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <xs1.h>
 
 int width, height;
 int counter; 
@@ -106,6 +107,45 @@ void tst_run_debug_output(streaming chanend c_out) {
             printf("\n");
         } else {
             printf("%02x", i);
+        }
+    }
+}
+
+void tst_run_frame_statistics(streaming chanend c_out, int ex, int ey) {
+    int i, t, bt;
+    timer tmr;
+
+    while (1) {
+        int x,y,n;
+
+        c_out :> i;
+        switch(i) {
+        case VID_NEW_FRAME:
+            if (y != ey) {
+                printf("lost line %d/%d in frame %d\n", y, ey, n);
+            }
+            y=0;
+            n++;
+
+            tmr :> t;
+            if (t-bt > 5*XS1_TIMER_HZ) {
+                printf("frame rate is %d\n", n/5);
+                n=0;
+                bt=t;
+            }
+            break;
+
+        case VID_NEW_LINE:
+            if (x != ex) {
+                printf("lost pixels %d/%d in line %d\n", x, ex, y);
+            }
+            x=0;
+            y++;
+            break;
+
+        default:
+            x+=4;
+            break;
         }
     }
 }
