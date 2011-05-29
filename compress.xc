@@ -32,23 +32,23 @@ inline int abs(int a) {
  */
 {char, char} read_bits(int &off, int &data, streaming chanend c_in) {
     if (off==0) {
-        char in;
+        char inData = 0;
 
-        c_in :> in;
-        data = in;
+        c_in :> inData;
+        data = inData;
 
         if (data == EncEscape) {
-            c_in :> in;
-            switch(in) {
+            c_in :> inData;
+            switch(inData) {
               case EncEscape:
-                data = in;
+                data = inData;
                 off = 8;
                 /* read from data and return values after switch */
                 break;
               case EncNewLine:  return {0, EncNewLine};
               case EncNewFrame: return {0, EncNewFrame};
-              case:
-                data = (data << 8) | in;
+              default:
+                data = (data << 8) | inData;
                 off = 16;
                 break;
             }
@@ -57,7 +57,7 @@ inline int abs(int a) {
         }
     }
     off -= 2;
-    return {(data >> off) & 0x02, NewBits};
+    return {(data >> off) & 0x02, EncNewBits};
 }
 
 
@@ -167,9 +167,9 @@ void cmpr_encode(streaming chanend c_in, streaming chanend c_out) {
             break;
         }
     }
+}
 
 
-
-void compr_decode(streaming chanend c_in, streaming chanend c_out) {
+void cmpr_decode(streaming chanend c_in, streaming chanend c_out) {
 
 }
