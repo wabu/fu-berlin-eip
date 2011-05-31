@@ -8,6 +8,21 @@ enum PixelType {
     NewPixel,
 };
 
+inline int abs(int a) {
+    return a>=0 ? a : -a;
+}
+/**
+ * update logic for 'c'
+ */
+inline void update_c(char &c, int incr_flag) {
+    if (incr_flag) {
+        c = c+c/2;
+    } else {
+        c=-c;
+        if (abs(c)>=2) c=c/2;
+    }
+}
+
 {int, int} read_pixel(int &off, int &data, streaming chanend c_in) {
     if (off==0) {
         c_in :> data;
@@ -22,9 +37,6 @@ enum PixelType {
     return {(data >> off) & 0xff, NewPixel};
 }
 
-inline int abs(int a) {
-    return a>=0 ? a : -a;
-}
 /**
  * 
  *
@@ -112,17 +124,9 @@ void cmpr_encode(streaming chanend c_in, streaming chanend c_out) {
             }
 
             if (c==0) c=1;
+            send |= !(d*c > 0);
+            update_c(c, send & 1);
 
-            if (d*c > 0) {
-                c=-c;
-                if (abs(c)>=2) c=c/2;
-                // send 0
-                send |= 0;
-            } else {
-                c = c+c/2;
-                // send 1
-                send |= 1;
-            }
             if (++n==sizeof(send)) {
                 if (send == EncEscape) c_out <: EncEscape;
                 c_out <: send;
@@ -147,8 +151,8 @@ void cmpr_encode(streaming chanend c_in, streaming chanend c_out) {
 
             c_out <: EncStartOfLine;
 
-            buff_b_hori = 0;
-            buff_c_hori = 0;
+            buff_b_hori = DEFAULT_PIXEL;
+            buff_c_hori = DEFAULT_C;
             break;
 
         case NewFrame:
@@ -161,8 +165,8 @@ void cmpr_encode(streaming chanend c_in, streaming chanend c_out) {
             c_out <: EncNewFrame;
 
             for (int i=0; i<VID_WIDTH; i++) {
-                buff_b_vert[i] = 0;
-                buff_c_vert[i] = 0;
+                buff_b_vert[i] = DEFAULT_PIXEL;
+                buff_c_vert[i] = DEFAULT_C;
             }
             break;
         }
@@ -171,14 +175,17 @@ void cmpr_encode(streaming chanend c_in, streaming chanend c_out) {
 
 
 void cmpr_decode(streaming chanend c_in, streaming chanend c_out) {
-    int data = 0, off = 0, x = 0, y;
-    char bits, ret_type, pixel, hv, c;
-
-    //   tooooooooo loooong
+    int data = 0, off = 0, x;
+    /* values derived from stream */
+    char bits, ret_type, hv, c_flag;
+    /* some buffers */
+    // rebuild image
     char buff_pixel_verti[VID_WIDTH];
-    char buff_pixel_hori;
+    char buff_pixel_hori, pixel;
+    // history 'c'
     char buff_c_verti[VID_WIDTH];
     char buff_c_hori;
+    char c = 1;
 
     /* read from input stream */
     while(1) {
@@ -186,24 +193,41 @@ void cmpr_decode(streaming chanend c_in, streaming chanend c_out) {
         
         switch(ret_type) {
             case EncNewFrame:
-                y = -1;
+                /* fill history buffers with default values, cause there
+                 * is no reference in first line of image                    */
+                for(int i=0; i < VID_WIDTH; i++) {
+                    buff_c_verti[x]      = DEFAULT_C;
+                    buff_pixel_verti[x]  = DEFAULT_PIXEL;
+                }
                 c_out <: NewFrame;
                 break;
             case EncStartOfLine:
                 x = 0;
                 /* horizontal reference is black */
-
-                buff_pixel_hori = 0;
-                y++;
+                buff_pixel_hori = DEFAULT_PIXEL;
+                buff_c_hori     = DEFAULT_C;
+                c_out <: NewLine;
                 break;
             case NewBits:
-                c  = bits & C_BIT_MASK;
+                c_flag = bits & C_BIT_MASK;
                 hv = bits & H_BIT_MASK;
+                /* horizontal vertical flag: 0=horizontal 1=vertical */
                 if (hv) {
-
+                    c = buff_c_verti[x];
+                    pixel = buff_pixel_verti[x] + buff_c_verti[x];
+                } else {
+                    c = buff_c_hori;
+                    pixel = buff_pixel_hori + buff_c_hori; 
                 }
+                /* update c depends on c_flag */
+                update_c(c, c_flag);
 
-                // x=0? buff_c_vert[x-1] = buff_c_hori;
+                /* update buffers */
+                buff_c_verti[x] = c;
+                buff_c_hori = c;
+                buff_pixel_verti[x] = pixel;
+                buff_pixel_hori = pixel;
+                x++;
                 break;
         }
 

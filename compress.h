@@ -1,9 +1,11 @@
 #ifndef COMPRESS_H
 #define COMPRESS_H
 
-#define C_BIT_MASK 0x01
-#define H_BIT_MASK 0x02
+#define C_BIT_MASK      0x01
+#define H_BIT_MASK      0x02
 
+#define DEFAULT_C       1
+#define DEFAULT_PIXEL   0
 /**
  *
  */
