@@ -45,7 +45,7 @@ inline int abs(int a) {
                 off = 8;
                 /* read from data and return values after switch */
                 break;
-              case EncNewLine:  return {0, EncNewLine};
+              case EncStartOfLine:  return {0, EncStartOfLine};
               case EncNewFrame: return {0, EncNewFrame};
               default:
                 data = (data << 8) | inData;
@@ -57,7 +57,7 @@ inline int abs(int a) {
         }
     }
     off -= 2;
-    return {(data >> off) & 0x02, EncNewBits};
+    return {(data >> off) & 0x02, NewBits};
 }
 
 
@@ -145,7 +145,7 @@ void cmpr_encode(streaming chanend c_in, streaming chanend c_out) {
                 n=0;
             }
 
-            c_out <: EncNewLine;
+            c_out <: EncStartOfLine;
 
             buff_b_hori = 0;
             buff_c_hori = 0;
@@ -171,5 +171,42 @@ void cmpr_encode(streaming chanend c_in, streaming chanend c_out) {
 
 
 void cmpr_decode(streaming chanend c_in, streaming chanend c_out) {
+    int data = 0, off = 0, x = 0, y;
+    char bits, ret_type, pixel, hv, c;
+
+    //   tooooooooo loooong
+    char buff_pixel_verti[VID_WIDTH];
+    char buff_pixel_hori;
+    char buff_c_verti[VID_WIDTH];
+    char buff_c_hori;
+
+    /* read from input stream */
+    while(1) {
+        {bits, ret_type} = read_bits(off, data, c_in);
+        
+        switch(ret_type) {
+            case EncNewFrame:
+                y = -1;
+                c_out <: NewFrame;
+                break;
+            case EncStartOfLine:
+                x = 0;
+                /* horizontal reference is black */
+
+                buff_pixel_hori = 0;
+                y++;
+                break;
+            case NewBits:
+                c  = bits & C_BIT_MASK;
+                hv = bits & H_BIT_MASK;
+                if (hv) {
+
+                }
+
+                // x=0? buff_c_vert[x-1] = buff_c_hori;
+                break;
+        }
+
+    }
 
 }

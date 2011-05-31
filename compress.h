@@ -1,13 +1,21 @@
 #ifndef COMPRESS_H
 #define COMPRESS_H
+
+#define C_BIT_MASK 0x01
+#define H_BIT_MASK 0x02
+
 /**
  *
  */
 enum EncSpecialChar {
+    /* markups */
     EncEscape=0xff,
-    EncNewLine=0xfe,
+    EncStartOfLine=0xfe,
     EncNewFrame=0xfd,
-    EncNewBits
+    NewBits=0xfc,
+    /* instead of #DEFINE */
+ //   C_BIT_MASK = 0x01,
+ //   H_BIT_MASK = 0x02
 };
 /**
  * 
