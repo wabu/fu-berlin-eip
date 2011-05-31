@@ -3,27 +3,29 @@
 #include <string.h>
 
 enum PixelType {
-    NewFrame,
-    NewLine,
-    NewPixel,
+    NewFrame = -1,
+    NewLine  = -2,
 };
 
-{int, int} read_pixel(int &off, int &data, streaming chanend c_in) {
+inline int read_pixel(int &off, int &data, streaming chanend c_in) {
     if (off==0) {
         c_in :> data;
-        if (data == VID_NEW_FRAME) {
-            return {0, NewFrame};
-        } else if (data == VID_NEW_LINE) {
-            return {0, NewLine};
+        switch (data) {
+        case VID_NEW_FRAME:
+            return NewFrame;
+        case VID_NEW_LINE:
+            return NewLine;
+        default:
+            off=32;
+            break;
         }
-        off = 32;
     }
     off -= 8;
-    return {(data >> off) & 0xff, NewPixel};
+    return (data >> off) & 0xff;
 }
 
 void downsample(const int n, streaming chanend c_in, streaming chanend c_out) {
-    int p, t, data, off = 0; 
+    int p, data, off = 0; 
 
     // idea: in each line, sum up n pixel values in a buffer postion
     //       on the n-th line at each n-th pixel, output the downsampled value and clear the buffer position
@@ -39,34 +41,39 @@ void downsample(const int n, streaming chanend c_in, streaming chanend c_out) {
     }
 
     while (1) {
-        {p, t} = read_pixel(off, data, c_in);
+        c_in :> data;
 
-        switch (t) {
-        case NewPixel:
-            buffer[x] += p;
-            if (++col_sw==n) {
-                if (row_sw==n) { // we sumed nxn pixels in buffer[x]
-                    c_out <: (char)(buffer[x]/(n*n));
-                    buffer[x] = 0;
-                }
-                x++;
-                col_sw=0;
-            }
+        switch (data) {
+        case VID_NEW_FRAME:
+            row_sw=4;
+            c_out <: VID_NEW_FRAME;
+            continue;
             break;
 
-        case NewLine:
+        case VID_NEW_LINE:
             if (row_sw++ == n) {
                 row_sw=1;
                 c_out <: VID_NEW_LINE;
             }
             col_sw=0;
             x=0;
-
+            continue;
             break;
 
-        case NewFrame:
-            row_sw=4;
-            c_out <: VID_NEW_FRAME;
+        default:
+            for (off=24; off>=0; off-=8) {
+                p = (data >> off) & 0xff;
+
+                buffer[x] += p;
+                if (++col_sw==n) {
+                    if (row_sw==n) { // we sumed nxn pixels in buffer[x]
+                        c_out <: (char)(buffer[x]/(n*n));
+                        buffer[x] = 0;
+                    }
+                    x++;
+                    col_sw=0;
+                }
+            }
             break;
         }
     }
