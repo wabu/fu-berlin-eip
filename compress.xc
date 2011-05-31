@@ -110,10 +110,10 @@ void cmpr_encode(streaming chanend c_in, streaming chanend c_out) {
 
             // send
             send |= hv;
-            send << 1;
+            send <<= 1;
             ++n;
 
-            if (hv) {
+            if (hv==0) {
                 d = dh;
                 c = ch;
                 b = bh+c;
@@ -132,7 +132,7 @@ void cmpr_encode(streaming chanend c_in, streaming chanend c_out) {
                 c_out <: send;
                 n=0;
             }
-            send << 1;
+            send <<= 1;
 
             buff_b_vert[x++] = b;
             buff_b_hori = b;
@@ -145,7 +145,7 @@ void cmpr_encode(streaming chanend c_in, streaming chanend c_out) {
 
             if (n) { // send remaining data
                 c_out <: send;
-                send << 1;
+                send <<= 1;
                 n=0;
             }
 
@@ -158,7 +158,7 @@ void cmpr_encode(streaming chanend c_in, streaming chanend c_out) {
         case NewFrame:
             if (n) { // send remaining data
                 c_out <: (char)(send<<(8-n));
-                send << 1;
+                send <<= 1;
                 n=0;
             }
 
@@ -192,43 +192,43 @@ void cmpr_decode(streaming chanend c_in, streaming chanend c_out) {
         {bits, ret_type} = read_bits(off, data, c_in);
         
         switch(ret_type) {
-            case EncNewFrame:
-                /* fill history buffers with default values, cause there
-                 * is no reference in first line of image                    */
-                for(int i=0; i < VID_WIDTH; i++) {
-                    buff_c_verti[x]      = DEFAULT_C;
-                    buff_pixel_verti[x]  = DEFAULT_PIXEL;
-                }
-                c_out <: NewFrame;
-                break;
-            case EncStartOfLine:
-                x = 0;
-                /* horizontal reference is black */
-                buff_pixel_hori = DEFAULT_PIXEL;
-                buff_c_hori     = DEFAULT_C;
-                c_out <: NewLine;
-                break;
-            case NewBits:
-                c_flag = bits & C_BIT_MASK;
-                hv = bits & H_BIT_MASK;
-                /* horizontal vertical flag: 0=horizontal 1=vertical */
-                if (hv) {
-                    c = buff_c_verti[x];
-                    pixel = buff_pixel_verti[x] + buff_c_verti[x];
-                } else {
-                    c = buff_c_hori;
-                    pixel = buff_pixel_hori + buff_c_hori; 
-                }
-                /* update c depends on c_flag */
-                update_c(c, c_flag);
+        case EncNewFrame:
+            /* fill history buffers with default values, cause there
+             * is no reference in first line of image                    */
+            for(int i=0; i < VID_WIDTH; i++) {
+                buff_c_verti[x]      = DEFAULT_C;
+                buff_pixel_verti[x]  = DEFAULT_PIXEL;
+            }
+            c_out <: NewFrame;
+            break;
+        case EncStartOfLine:
+            x = 0;
+            /* horizontal reference is black */
+            buff_pixel_hori = DEFAULT_PIXEL;
+            buff_c_hori     = DEFAULT_C;
+            c_out <: NewLine;
+            break;
+        case NewBits:
+            c_flag = bits & C_BIT_MASK;
+            hv     = bits & H_BIT_MASK;
+            /* horizontal vertical flag: 0=horizontal 1=vertical */
+            if (hv) {
+                c = buff_c_verti[x];
+                pixel = buff_pixel_verti[x] + c;
+            } else {
+                c = buff_c_hori;
+                pixel = buff_pixel_hori + c; 
+            }
+            /* update c depends on c_flag */
+            update_c(c, c_flag);
 
-                /* update buffers */
-                buff_c_verti[x] = c;
-                buff_c_hori = c;
-                buff_pixel_verti[x] = pixel;
-                buff_pixel_hori = pixel;
-                x++;
-                break;
+            /* update buffers */
+            buff_c_verti[x] = c;
+            buff_c_hori = c;
+            buff_pixel_verti[x] = pixel;
+            buff_pixel_hori = pixel;
+            x++;
+            break;
         }
 
     }
