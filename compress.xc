@@ -14,7 +14,7 @@ inline int abs(int a) {
 /**
  * update logic for 'c'
  */
-inline void update_c(char &c, int incr_flag) {
+inline void update_c(char &c, const int incr_flag) {
     if (incr_flag) {
         c = c+c/2;
     } else {
@@ -23,7 +23,7 @@ inline void update_c(char &c, int incr_flag) {
     }
 }
 
-{int, int} read_pixel(int &off, int &data, streaming chanend c_in) {
+{int, int} read_pix(int &off, int &data, streaming chanend c_in) {
     if (off==0) {
         c_in :> data;
         if (data == VID_NEW_FRAME) {
@@ -75,14 +75,15 @@ inline void update_c(char &c, int incr_flag) {
 
 void cmpr_encode(streaming chanend c_in, streaming chanend c_out) {
     int off=0, data=0;
-    int p, t, b, c, d;
+    int p, t, b, d;
     int bv, bh, cv, ch, hv;
     int dh, dv;
 
-    int buff_b_vert[VID_WIDTH/*/n*/]; // no dynamic memory ... :/
-    int buff_b_hori;
-    int buff_c_vert[VID_WIDTH/*/n*/];
-    int buff_c_hori;
+    char buff_b_vert[VID_WIDTH/*/n*/]; // no dynamic memory ... :/
+    char buff_b_hori;
+    char buff_c_vert[VID_WIDTH/*/n*/];
+    char buff_c_hori;
+    char c;
 
     int x=0; // offset for downsampled buff_vert
 
@@ -90,7 +91,7 @@ void cmpr_encode(streaming chanend c_in, streaming chanend c_out) {
     char send=0;
 
     while (1) {
-        {p, t} = read_pixel(off, data, c_in);
+        {p, t} = read_pix(off, data, c_in);
 
         switch (t) {
         case NewPixel:
@@ -127,7 +128,8 @@ void cmpr_encode(streaming chanend c_in, streaming chanend c_out) {
             send |= !(d*c > 0);
             update_c(c, send & 1);
 
-            if (++n==sizeof(send)) {
+            // magic number 8bit=1byte 
+            if (++n==sizeof(send)*8) {
                 if (send == EncEscape) c_out <: EncEscape;
                 c_out <: send;
                 n=0;
