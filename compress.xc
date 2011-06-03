@@ -8,7 +8,7 @@ enum PixelType {
     NewPixel,
 };
 
-{int, int} read_pixel(int &off, int &data, streaming chanend c_in) {
+{int, int} read_byte(int &off, int &data, streaming chanend c_in) {
     if (off==0) {
         c_in :> data;
         if (data == VID_NEW_FRAME) {
@@ -78,7 +78,7 @@ void cmpr_encode(streaming chanend c_in, streaming chanend c_out) {
     char send=0;
 
     while (1) {
-        {p, t} = read_pixel(off, data, c_in);
+        {p, t} = read_byte(off, data, c_in);
 
         switch (t) {
         case NewPixel:
@@ -111,7 +111,7 @@ void cmpr_encode(streaming chanend c_in, streaming chanend c_out) {
                 b = bv+c;
             }
 
-            if (c==0) c=1;
+            //if (c==0) c=1;
 
             if (d*c > 0) {
                 c=-c;
@@ -148,7 +148,7 @@ void cmpr_encode(streaming chanend c_in, streaming chanend c_out) {
             c_out <: EncStartOfLine;
 
             buff_b_hori = 0;
-            buff_c_hori = 0;
+            buff_c_hori = 1;
             break;
 
         case NewFrame:
@@ -162,7 +162,7 @@ void cmpr_encode(streaming chanend c_in, streaming chanend c_out) {
 
             for (int i=0; i<VID_WIDTH; i++) {
                 buff_b_vert[i] = 0;
-                buff_c_vert[i] = 0;
+                buff_c_vert[i] = 1;
             }
             break;
         }
