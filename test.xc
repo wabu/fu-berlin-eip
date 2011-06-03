@@ -97,17 +97,20 @@ void tst_run_debug_video(streaming chanend c_in) {
     }
 }
 
+#include "io.h"
+
 void tst_run_debug_output(streaming chanend c_out) {
     int i;
-    while (1) {
-        c_out :> i;
-        if (i==VID_NEW_FRAME) {
-            printf("\v\n");
-        } else if (i==VID_NEW_LINE) {
+    
+    rd_init(c_out);
+    rd_with_frames(c_out) {
+        rd_with_lines(c_out) {
+            rd_with_bytes(i, c_out) {
+                printf("%02x", i);
+            }
             printf("\n");
-        } else {
-            printf("%02x", i);
         }
+        printf("\v\n");
     }
 }
 

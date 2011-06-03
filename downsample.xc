@@ -1,5 +1,5 @@
 #include "video.h"
-
+#include "io.h"
 #include <string.h>
 
 enum PixelType {
@@ -22,9 +22,9 @@ enum PixelType {
     return {(data >> off) & 0xff, NewPixel};
 }
 
-void downsample(const int n, streaming chanend c_in, streaming chanend c_out) {
-    int p, t, data, off = 0; 
+#include <stdio.h>
 
+void downsample(const int n, streaming chanend c_in, streaming chanend c_out) {
     // idea: in each line, sum up n pixel values in a buffer postion
     //       on the n-th line at each n-th pixel, output the downsampled value and clear the buffer position
 
@@ -34,15 +34,29 @@ void downsample(const int n, streaming chanend c_in, streaming chanend c_out) {
     int col_sw=0; // counter for pixels currently in buffer at position x for the current line
     int row_sw=0; // counter for lines currently in buffer
 
+    rd_init(c_in);
+
     for (int i=0; i<VID_WIDTH; i++) {
         buffer[i]=0;
     }
 
-    while (1) {
-        {p, t} = read_pixel(off, data, c_in);
+    while(1) {
+        int p = rd_read_byte(c_in) {
+        case VID_NEW_FRAME:
+            row_sw=4;
+            c_out <: VID_NEW_FRAME;
+            break;
 
-        switch (t) {
-        case NewPixel:
+        case VID_NEW_LINE:
+            if (row_sw++ == n) {
+                row_sw=1;
+                c_out <: VID_NEW_LINE;
+            }
+            col_sw=0;
+            x=0;
+            break;
+
+        default:
             buffer[x] += p;
             if (++col_sw==n) {
                 if (row_sw==n) { // we sumed nxn pixels in buffer[x]
@@ -52,21 +66,6 @@ void downsample(const int n, streaming chanend c_in, streaming chanend c_out) {
                 x++;
                 col_sw=0;
             }
-            break;
-
-        case NewLine:
-            if (row_sw++ == n) {
-                row_sw=1;
-                c_out <: VID_NEW_LINE;
-            }
-            col_sw=0;
-            x=0;
-
-            break;
-
-        case NewFrame:
-            row_sw=4;
-            c_out <: VID_NEW_FRAME;
             break;
         }
     }
