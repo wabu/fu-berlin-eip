@@ -1,5 +1,6 @@
 #include "test.h"
 #include "video.h"
+#include "io.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -97,16 +98,15 @@ void tst_run_debug_video(streaming chanend c_in) {
     }
 }
 
-#include "io.h"
 
 void tst_run_debug_output(streaming chanend c_out) {
     int i;
-    
+
     rd_init(c_out);
     rd_with_frames(c_out) {
         rd_with_lines(c_out) {
-            rd_with_bytes(i, c_out) {
-                printf("%02x", i);
+            rd_with_ints(i, c_out) {
+                printf("%08x", i);
             }
             printf("\n");
         }
@@ -115,40 +115,40 @@ void tst_run_debug_output(streaming chanend c_out) {
 }
 
 void tst_run_frame_statistics(streaming chanend c_out, int ex, int ey) {
-    int i, t, bt;
+    int t, bt;
+    int n=0;
+
     timer tmr;
 
-    while (1) {
-        int x,y,n;
+    rd_init(c_out);
+    rd_with_frames(c_out) {
+        int y=0;
 
-        c_out :> i;
-        switch(i) {
-        case VID_NEW_FRAME:
-            if (y != ey) {
-                printf("lost line %d/%d in frame %d\n", y, ey, n);
+        rd_with_lines(c_out) {
+
+            // count pixels
+            int x=0, p;
+            rd_with_ints(p, c_out) {
+                x+=4;
             }
-            y=0;
-            n++;
 
-            tmr :> t;
-            if (t-bt > 5*XS1_TIMER_HZ) {
-                printf("frame rate is %d\n", n/5);
-                n=0;
-                bt=t;
-            }
-            break;
-
-        case VID_NEW_LINE:
             if (x != ex) {
                 printf("lost pixels %d/%d in line %d\n", x, ex, y);
             }
             x=0;
-            y++;
-            break;
 
-        default:
-            x+=4;
-            break;
+            y++;
+        }
+        if (y != ey)
+            printf("lost line %d/%d in frame %d\n", y, ey, n);
+
+        // fps
+        n++;
+        tmr :> t;
+        if (t-bt > 5*XS1_TIMER_HZ) {
+            printf("frame rate is %d\n", n/5);
+            n=0;
+            bt=t;
         }
     }
 }
