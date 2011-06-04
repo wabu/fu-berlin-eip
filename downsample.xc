@@ -40,6 +40,33 @@ void downsample(const int n, streaming chanend c_in, streaming chanend c_out) {
         buffer[i]=0;
     }
 
+    rd_with_frames(c_in) {
+        row_sw=4;
+        c_out <: VID_NEW_FRAME;
+
+        rd_with_lines(c_in) {
+            int p;
+            if (row_sw++ == n) {
+                row_sw=1;
+                c_out <: VID_NEW_LINE;
+            }
+            col_sw=0;
+            x=0;
+
+            rd_with_bytes(p, c_in) {
+                buffer[x] += p;
+                if (++col_sw==n) {
+                    if (row_sw==n) { // we sumed nxn pixels in buffer[x]
+                        c_out <: (char)(buffer[x]/(n*n));
+                        buffer[x] = 0;
+                    }
+                    x++;
+                    col_sw=0;
+                }
+            }
+        }
+    }
+
     while(1) {
         int p = rd_read_byte(c_in) {
         case VID_NEW_FRAME:
