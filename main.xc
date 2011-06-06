@@ -6,6 +6,7 @@
 #include "test.h"
 #include "blink.h"
 #include "downsample.h"
+#include "compress.h"
 
 int main(void) {
     int w=VID_WIDTH;
@@ -15,9 +16,11 @@ int main(void) {
 
     par {
         tst_run_debug_video(vid);
-        downsample(4, vid, output);
+        cmpr_encode(vid, output);
+        tst_run_dump_stream(output);
+        //downsample(4, vid, output);
         //tst_run_debug_output(output);
-        tst_run_frame_statistics(output,w/4,h/4);
+        //tst_run_frame_statistics(output,w/4,h/4);
     }
 
     return 0;

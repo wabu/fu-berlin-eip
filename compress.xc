@@ -1,26 +1,18 @@
 #include "video.h"
 #include "compress.h"
 #include <string.h>
+#include "io.h"
+
+enum CprParams {
+    HVDefault = 1,
+    CDefault = 24,
+};
 
 enum PixelType {
     NewFrame,
     NewLine,
     NewPixel,
 };
-
-{int, int} read_byte(int &off, int &data, streaming chanend c_in) {
-    if (off==0) {
-        c_in :> data;
-        if (data == VID_NEW_FRAME) {
-            return {0, NewFrame};
-        } else if (data == VID_NEW_LINE) {
-            return {0, NewLine};
-        }
-        off = 32;
-    }
-    off -= 8;
-    return {(data >> off) & 0xff, NewPixel};
-}
 
 inline int abs(int a) {
     return a>=0 ? a : -a;
@@ -60,112 +52,99 @@ inline int abs(int a) {
     return {(data >> off) & 0x02, NewBits};
 }
 
+#include <stdio.h>
 
 void cmpr_encode(streaming chanend c_in, streaming chanend c_out) {
-    int off=0, data=0;
-    int p, t, b, c, d;
-    int bv, bh, cv, ch, hv;
-    int dh, dv;
+    int pixel;
 
-    int buff_b_vert[VID_WIDTH/*/n*/]; // no dynamic memory ... :/
-    int buff_b_hori;
-    int buff_c_vert[VID_WIDTH/*/n*/];
-    int buff_c_hori;
+    rd_init(c_in);
+    wt_init(c_out, EncEscape);
 
-    int x=0; // offset for downsampled buff_vert
+    rd_with_frames(c_in) {
+        // hv: horizontal-vertical flag 
+        int hv = HVDefault;
 
-    char n=0;
-    char send=0;
+        // b: reconstructed picture values
+        int bv, bh, b;
+        int buff_bv[VID_WIDTH/*/n*/];
+        int buff_bh;
 
-    while (1) {
-        {p, t} = read_byte(off, data, c_in);
+        // c: change value in encoded picture
+        int cv, ch, c;
+        int buff_cv[VID_WIDTH/*/n*/];
+        int buff_ch;
 
-        switch (t) {
-        case NewPixel:
-            bv = buff_b_vert[x];
-            bh = buff_b_hori;
-            cv = buff_c_vert[x];
-            ch = buff_c_hori;
+        // d: distance reconstructed to original
+        int dh, dv, d;
 
-            dh = bh+ch-p;
-            dv = bv+cv-p;
+        printf("\nnew frame\n");
+        wt_escape(c_out, EncNewFrame);
 
-            if (hv && abs(dh)<abs(dv)-10) {
-                hv = 0;
-            } else if (!hv && abs(dh) > abs(dv)+10) {
-                hv = 1;
-            }
-
-            // send
-            send |= hv;
-            send << 1;
-            ++n;
-
-            if (hv) {
-                d = dh;
-                c = ch;
-                b = bh+c;
-            } else {
-                d = dv;
-                c = cv;
-                b = bv+c;
-            }
-
-            //if (c==0) c=1;
-
-            if (d*c > 0) {
-                c=-c;
-                if (abs(c)>=2) c=c/2;
-                // send 0
-                send |= 0;
-            } else {
-                c = c+c/2;
-                // send 1
-                send |= 1;
-            }
-            if (++n==sizeof(send)) {
-                if (send == EncEscape) c_out <: EncEscape;
-                c_out <: send;
-                n=0;
-            }
-            send << 1;
-
-            buff_b_vert[x++] = b;
-            buff_b_hori = b;
-            buff_c_vert[x] = c;
-            buff_c_hori = c;
-            break;
-
-        case NewLine:
-            x = 0;
-
-            if (n) { // send remaining data
-                c_out <: send;
-                send << 1;
-                n=0;
-            }
-
-            c_out <: EncStartOfLine;
-
-            buff_b_hori = 0;
-            buff_c_hori = 1;
-            break;
-
-        case NewFrame:
-            if (n) { // send remaining data
-                c_out <: (char)(send<<(8-n));
-                send << 1;
-                n=0;
-            }
-
-            c_out <: EncNewFrame;
-
-            for (int i=0; i<VID_WIDTH; i++) {
-                buff_b_vert[i] = 0;
-                buff_c_vert[i] = 1;
-            }
-            break;
+        for (int i=0; i<VID_WIDTH; i++) {
+            buff_bv[i] = 0;
+            buff_cv[i] = CDefault;
         }
+
+        rd_with_lines(c_in) {
+            int x=0;
+
+            printf("new line\n");
+
+            wt_escape(c_out, EncStartOfLine);
+
+            buff_bh = 0;
+            buff_ch = CDefault;
+
+            rd_with_bytes(pixel, c_in) {
+                bv = buff_bv[x];
+                bh = buff_bh;
+                cv = buff_cv[x];
+                ch = buff_ch;
+
+                dh = bh+ch-pixel;
+                dv = bv+cv-pixel;
+
+                printf("in: px=%d, hv=%d, bv=%d, bh=%d, cv=%d, ch=%d, dv=%d, dh=%d\n", pixel, hv, bv, bh, cv, ch, dv, dh);
+
+                // better to switch hv-flag?
+                if (hv && abs(dh)<abs(dv)-10) {
+                    hv = 1;
+                } else if (!hv && abs(dh) > abs(dv)+10) {
+                    hv = 0;
+                }
+                wt_bit(c_out, hv);
+
+                if (hv) {
+                    d = dh;
+                    c = ch;
+                    b = bh+c;
+                } else {
+                    d = dv;
+                    c = cv;
+                    b = bv+c;
+                }
+
+                if (d*c > 0) {
+                    c=-c;
+                    if (abs(c)>=4) c=c/2;
+                    wt_bit(c_out, 0);
+                } else {
+                    c = c+c/2;
+                    wt_bit(c_out, 1);
+                }
+
+                printf("out: hv=%d, c=%d, d=%d, b=%d\n", hv, c, d, b);
+
+                buff_bv[x] = b;
+                buff_bh = b;
+                buff_cv[x] = c;
+                buff_ch = c;
+
+                x++;
+            }
+            wt_flush(c_out);
+        }
+        wt_flush(c_out);
     }
 }
 

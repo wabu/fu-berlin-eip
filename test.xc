@@ -114,6 +114,17 @@ void tst_run_debug_output(streaming chanend c_out) {
     }
 }
 
+void tst_run_dump_stream(streaming chanend c_out) {
+    int buffer[4];
+
+    for(;;) {
+        for(int i=0; i<4; i++) {
+            c_out :> buffer[i];
+        }
+        printf("%08x %08x %08x %08x\n", buffer[0],buffer[1],buffer[2],buffer[3]);
+    }
+}
+
 void tst_run_frame_statistics(streaming chanend c_out, int ex, int ey) {
     int t, bt;
     int n=0;

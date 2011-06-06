@@ -1,10 +1,9 @@
 #define rd_init(chan) \
     int __rd_##chan##_store = 0; \
-    int __rd_##chan##_valid; \
-    __rd_##chan##_valid=0;
+    int __rd_##chan##_valid = 0
 
 #define rd_fill(chan) __rd_fill(chan, __rd_##chan##_store, __rd_##chan##_valid)
-inline static int __rd_fill(streaming chanend ch, int &st, int &vl) {
+__inline__ int __rd_fill(streaming chanend ch, int &st, int &vl) {
     ch:>st;
     switch(st) {
     case VID_NEW_FRAME:
@@ -52,3 +51,29 @@ __inline__ int __rd_read_byte(streaming chanend ch, int &st, int &vl) {
          __rd_##chan##_store!=VID_NEW_FRAME && __rd_##chan##_store != VID_NEW_LINE; \
          chan:>__rd_##chan##_store, var=__rd_##chan##_store) \
 
+
+
+#define wt_init(chan, esc) \
+    char __wt_##chan##_esc = esc; \
+    char __wt_##chan##_store = 0; \
+    char __wt_##chan##_valid = 0
+
+__inline__ void __wt_bit(streaming chanend ch, int b, char &s, char &v, char &esc) {
+    s <<= 1;
+    s |= b&0x1;
+    v++;
+
+    if (v==8) {
+        if (s == esc)
+            ch <: esc;
+        ch <: s;
+        v = 0;
+    }
+}
+#define wt_bit(chan, b) __wt_bit(chan, b, __wt_##chan##_store, __wt_##chan##_valid, __wt_##chan##_esc)
+#define wt_flush(chan) \
+    if (__wt_##chan##_valid) { chan <: __wt_##chan##_store; __wt_##chan##_valid=0; }
+#define wt_put(chan, val) \
+    chan <: (char)val;
+#define wt_escape(chan, val) \
+    chan <: (char)__wt_##chan##_esc; chan <: (char)val;
