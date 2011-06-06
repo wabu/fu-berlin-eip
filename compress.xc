@@ -1,6 +1,5 @@
 #include "video.h"
 #include "compress.h"
-
 #include <string.h>
 #include <stdio.h>
 
@@ -26,6 +25,27 @@ __inline__ void __enc_bit(streaming chanend ch, int b, char &s, char &v) {
     }
 }
 #define enc_bit(chan, b) __enc_bit(chan, b, __enc_##chan##_store, __enc_##chan##_valid)
+
+enum CprParams {
+    HVDefault = 1,
+    CDefault = 24,
+};
+
+inline int abs(int a) {
+    return a>=0 ? a : -a;
+}
+
+/**
+ * update logic for 'c'
+ */
+inline void update_c(char &c, const int incr_flag) {
+    if (incr_flag) {
+        c = c+c/2;
+    } else {
+        c=-c;
+        if (abs(c)>=2) c=c/2;
+    }
+}
 
 {char, char} read_bits(int &off, int &data, streaming chanend c_in) {
     if (off==0) {
@@ -55,16 +75,6 @@ __inline__ void __enc_bit(streaming chanend ch, int b, char &s, char &v) {
     }
     off -= 2;
     return {(data >> off) & 0x02, NewBits};
-}
-
-
-enum CprParams {
-    HVDefault = 1,
-    CDefault = 24,
-};
-
-inline int abs(int a) {
-    return a>=0 ? a : -a;
 }
 
 void cmpr_encode(streaming chanend c_in, streaming chanend c_out) {
@@ -163,40 +173,60 @@ void cmpr_encode(streaming chanend c_in, streaming chanend c_out) {
 
 
 void cmpr_decode(streaming chanend c_in, streaming chanend c_out) {
-    int data = 0, off = 0, x = 0, y;
-    char bits, ret_type, pixel, hv, c;
-
-    //   tooooooooo loooong
+    int data = 0, off = 0, x;
+    /* values derived from stream */
+    char bits, ret_type, hv, c_flag;
+    /* some buffers */
+    // rebuild image
     char buff_pixel_verti[VID_WIDTH];
-    char buff_pixel_hori;
+    char buff_pixel_hori, pixel;
+    // history 'c'
     char buff_c_verti[VID_WIDTH];
     char buff_c_hori;
+    char c = 1;
 
     /* read from input stream */
     while(1) {
         {bits, ret_type} = read_bits(off, data, c_in);
         
         switch(ret_type) {
-            case EncNewFrame:
-                y = -1;
-                c_out <: NewFrame;
-                break;
-            case EncStartOfLine:
-                x = 0;
-                /* horizontal reference is black */
+        case EncNewFrame:
+            /* fill history buffers with default values, cause there
+             * is no reference in first line of image                    */
+            for(int i=0; i < VID_WIDTH; i++) {
+                buff_c_verti[x]      = DEFAULT_C;
+                buff_pixel_verti[x]  = DEFAULT_PIXEL;
+            }
+            c_out <: VID_NEW_FRAME;
+            break;
+        case EncStartOfLine:
+            x = 0;
+            /* horizontal reference is black */
+            buff_pixel_hori = DEFAULT_PIXEL;
+            buff_c_hori     = DEFAULT_C;
+            c_out <: VID_NEW_LINE;
+            break;
+        case NewBits:
+            c_flag = bits & C_BIT_MASK;
+            hv     = bits & H_BIT_MASK;
+            /* horizontal vertical flag: 0=horizontal 1=vertical */
+            if (hv) {
+                c = buff_c_verti[x];
+                pixel = buff_pixel_verti[x] + c;
+            } else {
+                c = buff_c_hori;
+                pixel = buff_pixel_hori + c; 
+            }
+            /* update c depends on c_flag */
+            update_c(c, c_flag);
 
-                buff_pixel_hori = 0;
-                y++;
-                break;
-            case NewBits:
-                c  = bits & C_BIT_MASK;
-                hv = bits & H_BIT_MASK;
-                if (hv) {
-
-                }
-
-                // x=0? buff_c_vert[x-1] = buff_c_hori;
-                break;
+            /* update buffers */
+            buff_c_verti[x] = c;
+            buff_c_hori = c;
+            buff_pixel_verti[x] = pixel;
+            buff_pixel_hori = pixel;
+            x++;
+            break;
         }
 
     }

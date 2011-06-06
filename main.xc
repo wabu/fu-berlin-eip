@@ -9,18 +9,15 @@
 #include "compress.h"
 
 int main(void) {
-    int w=VID_WIDTH;
-    int h=VID_HEIGHT;
-    streaming chan vid, output;
-    tst_setup(w,h);
+    streaming chan vid, cmpr, output;
+    tst_setup(VID_WIDTH,VID_HEIGHT);
 
     par {
         tst_run_debug_video(vid);
-        cmpr_encode(vid, output);
-        tst_run_dump_stream(output);
-        //downsample(4, vid, output);
-        //tst_run_debug_output(output);
-        //tst_run_frame_statistics(output,w/4,h/4);
+        cmpr_encode(vid, cmpr);
+        cmpr_decode(cmpr, output);
+        tst_run_debug_output(output);
+        // tst_run_frame_statistics(output,VID_WIDTH,VID_HEIGHT);
     }
 
     return 0;
