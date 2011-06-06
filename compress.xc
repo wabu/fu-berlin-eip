@@ -1,27 +1,32 @@
 #include "video.h"
 #include "compress.h"
+
 #include <string.h>
-#include "io.h"
+#include <stdio.h>
 
-enum CprParams {
-    HVDefault = 1,
-    CDefault = 24,
-};
+#define enc_init(chan) \
+    char __enc_##chan##_store = 0; \
+    char __enc_##chan##_valid = 0
+#define enc_flush(chan) \
+    if (__enc_##chan##_valid) { chan <: __enc_##chan##_store; __enc_##chan##_valid=0; }
+#define enc_put(chan, val) \
+    chan <: (char)val;
+#define enc_escape(chan, val) \
+    chan <: (char)EncEscape; chan <: (char)val;
+__inline__ void __enc_bit(streaming chanend ch, int b, char &s, char &v) {
+    s <<= 1;
+    s |= b&0x1;
+    v++;
 
-enum PixelType {
-    NewFrame,
-    NewLine,
-    NewPixel,
-};
-
-inline int abs(int a) {
-    return a>=0 ? a : -a;
+    if (v==8) {
+        if (s == EncEscape)
+            enc_put(ch, EncEscape);
+        enc_put(ch, s);
+        v = 0;
+    }
 }
-/**
- * 
- *
- * @return {bits, type_flag}
- */
+#define enc_bit(chan, b) __enc_bit(chan, b, __enc_##chan##_store, __enc_##chan##_valid)
+
 {char, char} read_bits(int &off, int &data, streaming chanend c_in) {
     if (off==0) {
         char inData = 0;
@@ -52,15 +57,23 @@ inline int abs(int a) {
     return {(data >> off) & 0x02, NewBits};
 }
 
-#include <stdio.h>
+
+enum CprParams {
+    HVDefault = 1,
+    CDefault = 24,
+};
+
+inline int abs(int a) {
+    return a>=0 ? a : -a;
+}
 
 void cmpr_encode(streaming chanend c_in, streaming chanend c_out) {
     int pixel;
 
-    rd_init(c_in);
-    wt_init(c_out, EncEscape);
+    vid_init(c_in);
+    enc_init(c_out);
 
-    rd_with_frames(c_in) {
+    vid_with_frames(c_in) {
         // hv: horizontal-vertical flag 
         int hv = HVDefault;
 
@@ -78,24 +91,24 @@ void cmpr_encode(streaming chanend c_in, streaming chanend c_out) {
         int dh, dv, d;
 
         printf("\nnew frame\n");
-        wt_escape(c_out, EncNewFrame);
+        enc_escape(c_out, EncNewFrame);
 
         for (int i=0; i<VID_WIDTH; i++) {
             buff_bv[i] = 0;
             buff_cv[i] = CDefault;
         }
 
-        rd_with_lines(c_in) {
+        vid_with_lines(c_in) {
             int x=0;
 
             printf("new line\n");
 
-            wt_escape(c_out, EncStartOfLine);
+            enc_escape(c_out, EncStartOfLine);
 
             buff_bh = 0;
             buff_ch = CDefault;
 
-            rd_with_bytes(pixel, c_in) {
+            vid_with_bytes(pixel, c_in) {
                 bv = buff_bv[x];
                 bh = buff_bh;
                 cv = buff_cv[x];
@@ -112,7 +125,7 @@ void cmpr_encode(streaming chanend c_in, streaming chanend c_out) {
                 } else if (!hv && abs(dh) > abs(dv)+10) {
                     hv = 0;
                 }
-                wt_bit(c_out, hv);
+                enc_bit(c_out, hv);
 
                 if (hv) {
                     d = dh;
@@ -127,10 +140,10 @@ void cmpr_encode(streaming chanend c_in, streaming chanend c_out) {
                 if (d*c > 0) {
                     c=-c;
                     if (abs(c)>=4) c=c/2;
-                    wt_bit(c_out, 0);
+                    enc_bit(c_out, 0);
                 } else {
                     c = c+c/2;
-                    wt_bit(c_out, 1);
+                    enc_bit(c_out, 1);
                 }
 
                 printf("out: hv=%d, c=%d, d=%d, b=%d\n", hv, c, d, b);
@@ -142,9 +155,9 @@ void cmpr_encode(streaming chanend c_in, streaming chanend c_out) {
 
                 x++;
             }
-            wt_flush(c_out);
+            enc_flush(c_out);
         }
-        wt_flush(c_out);
+        enc_flush(c_out);
     }
 }
 

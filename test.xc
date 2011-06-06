@@ -1,6 +1,5 @@
 #include "test.h"
 #include "video.h"
-#include "io.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -102,10 +101,10 @@ void tst_run_debug_video(streaming chanend c_in) {
 void tst_run_debug_output(streaming chanend c_out) {
     int i;
 
-    rd_init(c_out);
-    rd_with_frames(c_out) {
-        rd_with_lines(c_out) {
-            rd_with_ints(i, c_out) {
+    vid_init(c_out);
+    vid_with_frames(c_out) {
+        vid_with_lines(c_out) {
+            vid_with_ints(i, c_out) {
                 printf("%08x", i);
             }
             printf("\n");
@@ -131,15 +130,15 @@ void tst_run_frame_statistics(streaming chanend c_out, int ex, int ey) {
 
     timer tmr;
 
-    rd_init(c_out);
-    rd_with_frames(c_out) {
+    vid_init(c_out);
+    vid_with_frames(c_out) {
         int y=0;
 
-        rd_with_lines(c_out) {
+        vid_with_lines(c_out) {
 
             // count pixels
             int x=0, p;
-            rd_with_ints(p, c_out) {
+            vid_with_ints(p, c_out) {
                 x+=4;
             }
 

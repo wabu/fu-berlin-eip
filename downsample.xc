@@ -1,5 +1,4 @@
 #include "video.h"
-#include "io.h"
 #include <string.h>
 
 enum PixelType {
@@ -34,17 +33,17 @@ void downsample(const int n, streaming chanend c_in, streaming chanend c_out) {
     int col_sw=0; // counter for pixels currently in buffer at position x for the current line
     int row_sw=0; // counter for lines currently in buffer
 
-    rd_init(c_in);
+    vid_init(c_in);
 
     for (int i=0; i<VID_WIDTH; i++) {
         buffer[i]=0;
     }
 
-    rd_with_frames(c_in) {
+    vid_with_frames(c_in) {
         row_sw=4;
         c_out <: VID_NEW_FRAME;
 
-        rd_with_lines(c_in) {
+        vid_with_lines(c_in) {
             int p;
             if (row_sw++ == n) {
                 row_sw=1;
@@ -53,7 +52,7 @@ void downsample(const int n, streaming chanend c_in, streaming chanend c_out) {
             col_sw=0;
             x=0;
 
-            rd_with_bytes(p, c_in) {
+            vid_with_bytes(p, c_in) {
                 buffer[x] += p;
                 if (++col_sw==n) {
                     if (row_sw==n) { // we sumed nxn pixels in buffer[x]
@@ -68,7 +67,7 @@ void downsample(const int n, streaming chanend c_in, streaming chanend c_out) {
     }
 
     while(1) {
-        int p = rd_read_byte(c_in) {
+        int p = vid_read_byte(c_in) {
         case VID_NEW_FRAME:
             row_sw=4;
             c_out <: VID_NEW_FRAME;
