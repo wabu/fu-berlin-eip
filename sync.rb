@@ -7,6 +7,7 @@ $stdin.each_line do |l|
   if l.strip.empty?
     unless ls.empty?
       sleep s
+      puts
       puts ls
       ls=[]
     end
