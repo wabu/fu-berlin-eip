@@ -5,25 +5,55 @@
 
 #define enc_init(chan) \
     char __enc_##chan##_store = 0; \
-    char __enc_##chan##_valid = 0
+    int  __enc_##chan##_valid = 0
 #define enc_flush(chan) \
     if (__enc_##chan##_valid) { chan <: __enc_##chan##_store; __enc_##chan##_valid=0; }
 #define enc_put(chan, val) \
-    chan <: (char)val;
+    chan <: (char)val
 #define enc_escape(chan, val) \
-    chan <: (char)EncEscape; chan <: (char)val;
-__inline__ void __enc_bit(streaming chanend ch, int b, char &s, char &v) {
-    s = (s<<1) | (b&0x1);
-    v++;
-
-    if (v==8) {
-        if (s == EncEscape)
-            enc_put(ch, EncEscape);
-        enc_put(ch, s);
-        v = 0;
+    chan <: (char)EncEscape; chan <: (char)val
+#define enc_bits(chan, b, n) \
+    __enc_##chan##_store = (__enc_##chan##_store<<n) | (b&((1<<n)-1)); \
+    if ((__enc_##chan##_valid+=n)==8) { \
+        if (__enc_##chan##_store == EncEscape) chan <: (char)EncEscape; \
+        chan <: __enc_##chan##_store; \
+        __enc_##chan##_valid = 0; \
     }
+
+
+#define dec_init(chan) \
+    char __dec_##chan##_store = 0; \
+    int  __dec_##chan##_valid = 0; \
+    char __dec_##chan##_type = 0
+
+inline int __dec_chan_fill(streaming chanend ch, char &d) {
+    ch :> d;
+    if (d==EncEscape) {
+        ch :> d;
+        switch (d) {
+            case EncNewFrame:
+            case EncStartOfLine:
+                return d;
+            default:
+                break;
+        }
+    }
+    return 0;
 }
-#define enc_bit(chan, b) __enc_bit(chan, b, __enc_##chan##_store, __enc_##chan##_valid)
+#define dec_with_frames(chan) \
+    while (__dec_##chan##_type!=EncNewFrame) {__dec_##chan##_type=__dec_chan_fill(chan,__dec_##chan##_store);} \
+    for (;;)
+
+#define dec_with_lines(chan) \
+    for (__dec_##chan##_type=__dec_chan_fill(chan,__dec_##chan##_store); __dec_##chan##_type!=EncNewFrame; )
+
+#define dec_with_bits(var, chan) \
+    for (__dec_##chan##_type=__dec_chan_fill(chan,__dec_##chan##_store); \
+         __dec_##chan##_type!=EncNewFrame && __dec_##chan##_type!=EncStartOfLine; \
+         __dec_##chan##_type=__dec_chan_fill(chan,__dec_##chan##_store)) \
+    for (__dec_##chan##_valid= 8, var = ((__dec_##chan##_store >> (__dec_##chan##_valid-=2)) & 0x3);\
+         __dec_##chan##_valid>=0; var = ((__dec_##chan##_store >> (__dec_##chan##_valid-=2)) & 0x3))
+
 
 inline int abs(int a) {
     return a>=0 ? a : -a;
@@ -37,7 +67,7 @@ inline int update_c(int &c, const int incr_flag) {
         c = c+c/2;
     } else {
         c=-c;
-        if (abs(c)>=4) c=c/2;
+        if (abs(c)>=MIN_C*2) c=c/2;
     }
     return incr_flag;
 }
@@ -116,8 +146,7 @@ void cmpr_encode(streaming chanend c_in, streaming chanend c_out) {
                 
                 cf = update_c(c, (d*c<0));
 
-                enc_bit(c_out, hv);
-                enc_bit(c_out, cf);
+                enc_bits(c_out, ((hv<<1)| cf), 2);
                 printf("EE out: hv=%d, cf=%d, c=%d, d=%d, b=%d\n", hv, cf, c, d, b);
 
                 buff_bv[x] = b;
@@ -127,46 +156,15 @@ void cmpr_encode(streaming chanend c_in, streaming chanend c_out) {
 
                 x++;
             }
-            enc_flush(c_out);
+            //enc_flush(c_out);
         }
-        enc_flush(c_out);
+        //enc_flush(c_out);
     }
-}
-
-{int, int} read_bits(int &off, int &data, streaming chanend c_in) {
-    if (off==0) {
-        char inData = 0;
-
-        c_in :> inData;
-        data = inData;
-
-        if (data == EncEscape) {
-            c_in :> inData;
-            switch(inData) {
-              case EncEscape:
-                data = inData;
-                off = 8;
-                /* read from data and return values after switch */
-                break;
-              case EncStartOfLine:  return {0, EncStartOfLine};
-              case EncNewFrame: return {0, EncNewFrame};
-              default:
-                data = (data << 8) | inData;
-                off = 16;
-                break;
-            }
-        } else {
-            off = 8;
-        }
-    }
-    off -= 2;
-    return {(data >> off) & 0x03, NewBits};
 }
 
 void cmpr_decode(streaming chanend c_in, streaming chanend c_out) {
-    int data = 0, off = 0, x;
     /* values derived from stream */
-    int bits, ret_type, hv, c_flag;
+    int bits, hv, c_flag;
     /* some buffers */
     // rebuild image
     int buff_pixel_verti[VID_WIDTH];
@@ -177,56 +175,57 @@ void cmpr_decode(streaming chanend c_in, streaming chanend c_out) {
     int c = 1;
 
     /* read from input stream */
-    while(1) {
-        {bits, ret_type} = read_bits(off, data, c_in);
-        
-        switch(ret_type) {
-        case EncNewFrame:
-            printf("\nDD new frame\n");
-            /* fill history buffers with default values, cause there
-             * is no reference in first line of image                    */
-            for(int i=0; i < VID_WIDTH; i++) {
-                buff_c_verti[i]      = DEFAULT_C;
-                buff_pixel_verti[i]  = DEFAULT_PIXEL;
-            }
-            c_out <: VID_NEW_FRAME;
-            break;
-        case EncStartOfLine:
-            printf("DD new line\n");
-            x = 0;
-            /* horizontal reference is black */
-            buff_pixel_hori = DEFAULT_PIXEL;
-            buff_c_hori     = DEFAULT_C;
-            c_out <: VID_NEW_LINE;
-            break;
-        case NewBits:
-            c_flag = bits & C_BIT_MASK;
-            hv     = (bits & H_BIT_MASK) >> 1;
-            printf("DD in: c=%d, hv=%d, cv=%d, ch=%d, bv=%d, bh=%d\n", c_flag, hv, buff_c_verti[x], buff_c_hori, buff_pixel_verti[x], buff_pixel_hori);
-            /* horizontal vertical flag: 0=horizontal 1=vertical */
-            if (hv) {
-                c = buff_c_hori;
-                pixel = buff_pixel_hori + c; 
-            } else {
-                c = buff_c_verti[x];
-                pixel = buff_pixel_verti[x] + c;
-            }
+    dec_init(c_in);
+    dec_with_frames(c_in) {
+        printf("\nDD new frame\n");
+        vid_start_frame(c_out);
 
-            c_out <: (char)pixel;
-
-            /* update c depends on c_flag */
-            update_c(c, c_flag);
-            printf("DD out: pix=%d, c=%d\n", pixel, c);
-
-            /* update buffers */
-            buff_c_verti[x] = c;
-            buff_c_hori = c;
-            buff_pixel_verti[x] = pixel;
-            buff_pixel_hori = pixel;
-            x++;
-            break;
+        for(int i=0; i < VID_WIDTH; i++) {
+            buff_c_verti[i]      = DEFAULT_C;
+            buff_pixel_verti[i]  = DEFAULT_PIXEL;
         }
 
-    }
 
+        dec_with_lines(c_in) {
+            int x;
+
+            printf("DD new line\n");
+            vid_start_line(c_out); 
+
+            buff_pixel_hori = DEFAULT_PIXEL;
+            buff_c_hori     = DEFAULT_C;
+
+            x = 0;
+            dec_with_bits(bits, c_in) {
+                printf("DD valid %d\n", __dec_c_in_valid);
+                c_flag =  bits & C_BIT_MASK;
+                hv     = (bits & H_BIT_MASK) >> 1;
+                printf("DD in: c=%d, hv=%d, cv=%d, ch=%d, bv=%d, bh=%d\n",
+                        c_flag, hv, buff_c_verti[x], buff_c_hori, buff_pixel_verti[x], buff_pixel_hori);
+
+                /* horizontal vertical flag: 0=horizontal 1=vertical */
+                if (hv) {
+                    c = buff_c_hori;
+                    pixel = buff_pixel_hori + c; 
+                } else {
+                    c = buff_c_verti[x];
+                    pixel = buff_pixel_verti[x] + c;
+                }
+
+                vid_put_pixel(c_out, pixel);
+
+                /* update c depends on c_flag */
+                update_c(c, c_flag);
+                printf("DD out: pix=%d, c=%d\n", pixel, c);
+
+                /* update buffers */
+                buff_c_verti[x] = c;
+                buff_c_hori = c;
+                buff_pixel_verti[x] = pixel;
+                buff_pixel_hori = pixel;
+
+                x++;
+            }
+        }
+    }
 }

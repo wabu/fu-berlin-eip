@@ -40,14 +40,14 @@ void downsample(const int n, streaming chanend c_in, streaming chanend c_out) {
     }
 
     vid_with_frames(c_in) {
+        vid_start_frame(c_out);
         row_sw=4;
-        c_out <: VID_NEW_FRAME;
 
         vid_with_lines(c_in) {
             int p;
             if (row_sw++ == n) {
                 row_sw=1;
-                c_out <: VID_NEW_LINE;
+                vid_start_line(c_out);
             }
             col_sw=0;
             x=0;
@@ -56,43 +56,13 @@ void downsample(const int n, streaming chanend c_in, streaming chanend c_out) {
                 buffer[x] += p;
                 if (++col_sw==n) {
                     if (row_sw==n) { // we sumed nxn pixels in buffer[x]
-                        c_out <: (char)(buffer[x]/(n*n));
+                        vid_put_pixel(c_out, buffer[x]/(n*n));
                         buffer[x] = 0;
                     }
                     x++;
                     col_sw=0;
                 }
             }
-        }
-    }
-
-    while(1) {
-        int p = vid_read_byte(c_in) {
-        case VID_NEW_FRAME:
-            row_sw=4;
-            c_out <: VID_NEW_FRAME;
-            break;
-
-        case VID_NEW_LINE:
-            if (row_sw++ == n) {
-                row_sw=1;
-                c_out <: VID_NEW_LINE;
-            }
-            col_sw=0;
-            x=0;
-            break;
-
-        default:
-            buffer[x] += p;
-            if (++col_sw==n) {
-                if (row_sw==n) { // we sumed nxn pixels in buffer[x]
-                    c_out <: (char)(buffer[x]/(n*n));
-                    buffer[x] = 0;
-                }
-                x++;
-                col_sw=0;
-            }
-            break;
         }
     }
 }

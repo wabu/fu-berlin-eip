@@ -4,7 +4,8 @@
 #define C_BIT_MASK      0x01
 #define H_BIT_MASK      0x02
 
-#define DEFAULT_C       6
+#define DEFAULT_C       32
+#define MIN_C           2
 #define DEFAULT_PIXEL   0
 #define DEFAULT_HV      1
 /**
