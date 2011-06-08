@@ -6,7 +6,7 @@
 
 #define DEFAULT_C       32
 #define MIN_C           2
-#define DEFAULT_PIXEL   0
+#define DEFAULT_PIXEL   DEFAULT_C
 #define DEFAULT_HV      1
 /**
  *

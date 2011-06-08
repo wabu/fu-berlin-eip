@@ -3,6 +3,9 @@
 #include <string.h>
 #include <stdio.h>
 
+#define printf(...)
+
+
 #define enc_init(chan) \
     char __enc_##chan##_store = 0; \
     int  __enc_##chan##_valid = 0
@@ -25,7 +28,6 @@
     char __dec_##chan##_store = 0; \
     int  __dec_##chan##_valid = 0; \
     char __dec_##chan##_type = 0
-
 inline int __dec_chan_fill(streaming chanend ch, char &d) {
     ch :> d;
     if (d==EncEscape) {
@@ -43,10 +45,8 @@ inline int __dec_chan_fill(streaming chanend ch, char &d) {
 #define dec_with_frames(chan) \
     while (__dec_##chan##_type!=EncNewFrame) {__dec_##chan##_type=__dec_chan_fill(chan,__dec_##chan##_store);} \
     for (;;)
-
 #define dec_with_lines(chan) \
     for (__dec_##chan##_type=__dec_chan_fill(chan,__dec_##chan##_store); __dec_##chan##_type!=EncNewFrame; )
-
 #define dec_with_bits(var, chan) \
     for (__dec_##chan##_type=__dec_chan_fill(chan,__dec_##chan##_store); \
          __dec_##chan##_type!=EncNewFrame && __dec_##chan##_type!=EncStartOfLine; \
@@ -72,8 +72,6 @@ inline int update_c(int &c, const int incr_flag) {
     return incr_flag;
 }
 
-#define printf(...)
-
 void cmpr_encode(streaming chanend c_in, streaming chanend c_out) {
     int pixel;
 
@@ -86,13 +84,13 @@ void cmpr_encode(streaming chanend c_in, streaming chanend c_out) {
 
         // b: reconstructed picture values
         int bv, bh, b;
-        int buff_bv[VID_WIDTH/*/n*/];
-        int buff_bh;
+        char buff_bv[VID_WIDTH/*/n*/];
+        char buff_bh;
 
         // c: change value in encoded picture
         int cv, ch, c, cf;
-        int buff_cv[VID_WIDTH/*/n*/];
-        int buff_ch;
+        signed char buff_cv[VID_WIDTH/*/n*/];
+        signed char buff_ch;
 
         // d: distance reconstructed to original
         int dh, dv, d;
@@ -167,11 +165,11 @@ void cmpr_decode(streaming chanend c_in, streaming chanend c_out) {
     int bits, hv, c_flag;
     /* some buffers */
     // rebuild image
-    int buff_pixel_verti[VID_WIDTH];
-    int buff_pixel_hori, pixel;
+    char buff_pixel_verti[VID_WIDTH];
+    char buff_pixel_hori, pixel;
     // history 'c'
-    int buff_c_verti[VID_WIDTH];
-    int buff_c_hori;
+    signed char buff_c_verti[VID_WIDTH];
+    signed char buff_c_hori;
     int c = 1;
 
     /* read from input stream */

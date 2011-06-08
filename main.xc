@@ -9,8 +9,8 @@
 #include "compress.h"
 
 int main(void) {
-    int w=16;//VID_WIDTH;
-    int h=16;//VID_HEIGHT;
+    int w=VID_WIDTH;
+    int h=VID_HEIGHT;
 
     streaming chan vid, cmpr, output;
     tst_setup(w,h);
