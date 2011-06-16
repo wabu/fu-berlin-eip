@@ -8,15 +8,13 @@
 #define MIN_C           2
 #define DEFAULT_PIXEL   DEFAULT_C
 #define DEFAULT_HV      1
-/**
- *
- */
+
 enum EncSpecialChar {
     /* markups */
+    NewBits=0x0,
     EncEscape=0xff,
     EncStartOfLine=0xfe,
     EncNewFrame=0xfd,
-    NewBits=0xfc,
     /* instead of #DEFINE */
  //   C_BIT_MASK = 0x01,
  //   H_BIT_MASK = 0x02

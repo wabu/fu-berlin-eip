@@ -4,6 +4,10 @@
 #define VID_WIDTH     240
 #define VID_HEIGHT    180
 
+#define chan_init(name, type, chan) \
+    type __##name##_##chan##_type = 0; \
+    type __##name##_##chan##_store = 0; \
+    int __##name##_##chan##_valid = 0
 
 #define vid_init(chan) \
     int __vid_##chan##_store = 0; \

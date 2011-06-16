@@ -1,8 +1,8 @@
-%a=imread ("./lena.bmp");
-%a= uint8(rgb2gray(a));
-a=imread ('./chess.64.bmp');
+a=imread ("./lena.bmp");
+a= uint8(rgb2gray(a));
+%a=imread ('./chess.64.bmp');
 
-dim=64;
+dim=256;
 
 b = uint8(zeros (dim,dim));
 
