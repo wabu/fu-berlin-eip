@@ -20,14 +20,14 @@
 #define vid_with_lines(chan) \
     for (chan:>__vid_##chan##_store; __vid_##chan##_store != VID_NEW_FRAME; )
 
-#define vid_with_bytes(var, chan) \
-    for (chan:>__vid_##chan##_store; __vid_##chan##_store!=VID_NEW_FRAME && __vid_##chan##_store != VID_NEW_LINE; chan:>__vid_##chan##_store) \
-    for (__vid_##chan##_valid=32, var = ((__vid_##chan##_store >> (__vid_##chan##_valid-=8)) & 0xff);\
-         __vid_##chan##_valid>=0; var = ((__vid_##chan##_store >> (__vid_##chan##_valid-=8)) & 0xff))
 #define vid_with_ints(var, chan) \
     for (__vid_##chan##_valid=0, chan:>__vid_##chan##_store, var=__vid_##chan##_store; \
          __vid_##chan##_store!=VID_NEW_FRAME && __vid_##chan##_store != VID_NEW_LINE; \
-         chan:>__vid_##chan##_store, var=__vid_##chan##_store) \
+         chan:>__vid_##chan##_store, var=__vid_##chan##_store)
+#define vid_with_bytes(var, chan) \
+    for (__vid_##chan##_valid=32, var = ((__vid_##chan##_store >> (__vid_##chan##_valid-=8)) & 0xff);\
+         __vid_##chan##_valid>=0; var = ((__vid_##chan##_store >> (__vid_##chan##_valid-=8)) & 0xff))
+
 
 #define vid_start_frame(chan) chan <: VID_NEW_FRAME
 #define vid_start_line(chan) chan <: VID_NEW_LINE

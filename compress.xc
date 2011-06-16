@@ -9,12 +9,23 @@
 #define enc_init(chan) \
     char __enc_##chan##_store = 0; \
     int  __enc_##chan##_valid = 0
-#define enc_flush(chan) \
-    if (__enc_##chan##_valid) { chan <: __enc_##chan##_store; __enc_##chan##_valid=0; }
 #define enc_put(chan, val) \
     chan <: (char)val
 #define enc_escape(chan, val) \
     chan <: (char)EncEscape; chan <: (char)val
+
+#define enc_add(chan, b, n) \
+    __enc_##chan##_store = (__enc_##chan##_store<<n) | (b&((1<<n)-1)); \
+    __enc_##chan##_valid+=n; \
+    if (__enc_##chan##_valid == 8)
+#define enc_filled(chan) \
+    (__enc_##chan##_valid == 8)
+
+#define enc_flush(chan) \
+    if (__enc_##chan##_store == EncEscape) chan <: (char)EncEscape; \
+    chan <: __enc_##chan##_store; \
+    __enc_##chan##_valid = 0
+
 #define enc_bits(chan, b, n) \
     __enc_##chan##_store = (__enc_##chan##_store<<n) | (b&((1<<n)-1)); \
     if ((__enc_##chan##_valid+=n)==8) { \
@@ -194,17 +205,18 @@ void cmpr_encode(streaming chanend c_in, streaming chanend c_out) {
             enc_escape(c_out, EncStartOfLine);
             cmpr_logic_line_init();
 
-            vid_with_bytes(pixel, c_in) {
-                cmpr_logic_enc(pixel);
+            vid_with_ints(pixel, c_in) {
+                vid_with_bytes(pixel, c_in) {
+                    cmpr_logic_enc(pixel);
 
-                printf("EC in: px=%d, hv=%d, bv=%d, bh=%d, cv=%d, ch=%d, dv=%d, dh=%d\n", pixel, hv, bv, bh, cv, ch, dv, dh);
-                printf("EC out: hv=%d, cf=%d, c=%d, d=%d, b=%d\n", hv, cf, c, d, b);
+                    printf("EC in: px=%d, hv=%d, bv=%d, bh=%d, cv=%d, ch=%d, dv=%d, dh=%d\n", pixel, hv, bv, bh, cv, ch, dv, dh);
+                    printf("EC out: hv=%d, cf=%d, c=%d, d=%d, b=%d\n", hv, cf, c, d, b);
 
-                enc_bits(c_out, ((hv<<1)| cf), 2);
+                    enc_add(c_out, ((hv<<1)| cf), 2);
+                }
+                enc_flush(c_out);
             }
-            //enc_flush(c_out);
         }
-        //enc_flush(c_out);
     }
 }
 
@@ -244,7 +256,7 @@ void cmpr_decode(streaming chanend c_in, streaming chanend c_out) {
 
 void cmpr_rle_encode(streaming chanend c_in, streaming chanend c_out) {
     int pixel;
-    int hv_rle;
+    char hv_enc;
 
     vid_init(c_in);
     enc_init(c_out);
@@ -260,41 +272,44 @@ void cmpr_rle_encode(streaming chanend c_in, streaming chanend c_out) {
             enc_escape(c_out, EncStartOfLine);
             cmpr_logic_line_init();
 
-            hv_rle=0;
+            vid_with_ints(pixel, c_in) {
+                vid_with_bytes(pixel, c_in) {
+                    cmpr_logic_enc(pixel);
 
-            vid_with_bytes(pixel, c_in) {
-                cmpr_logic_enc(pixel);
+                    printf("EC in: px=%d, hv=%d, bv=%d, bh=%d, cv=%d, ch=%d, dv=%d, dh=%d\n", pixel, hv, bv, bh, cv, ch, dv, dh);
+                    printf("EC out: hv=%d, cf=%d, c=%d, d=%d, b=%d\n", hv, cf, c, d, b);
 
-                printf("EC in: px=%d, hv=%d, bv=%d, bh=%d, cv=%d, ch=%d, dv=%d, dh=%d\n", pixel, hv, bv, bh, cv, ch, dv, dh);
-                printf("EC out: hv=%d, cf=%d, c=%d, d=%d, b=%d\n", hv, cf, c, d, b);
+                    hv_enc = (hv_enc<<1) | hvt;
 
-                if (hvt) {
-                    printf("EC encoding hv rle of %d\n", hv_rle);
-                    enc_escape(c_out, hv_rle);
-                    hv_rle = 0;
+                    enc_add(c_out, cf, 1);
                 }
-                hv_rle++;
-
-                enc_bits(c_out, cf, 1);
+                if (enc_filled(c_out)) {
+                    if (hv_enc) {
+                        if (hv_enc == 0xff) hv_enc = 0;
+                        printf("EC rle flag set, hv_enc=%x\n", hv_enc);
+                        enc_escape(c_out, hv_enc);
+                        hv_enc = 0;
+                    }
+                    enc_flush(c_out);
+                }
             }
-            //enc_flush(c_out);
         }
-        //enc_flush(c_out);
     }
 }
 void cmpr_rle_decode(streaming chanend c_in, streaming chanend c_out) {
     dec_init(c_in);
     cmpr_logic_vars_init();
-    int cnt, bits;
-    int hv_next;
-    int buff_hv[8];
-    int ia, ib;
+    char cbit, rle;
+
+    char hv_enc;
+    char hv_valid;
+    char hv_flag;
 
     dec_with_frames(c_in) {
         printf("\nDC new frame\n");
         vid_start_frame(c_out);
         cmpr_logic_frame_init();
-        hv_next = DEFAULT_HV;
+        hv_flag = DEFAULT_HV;
 
         dec_with_lines(c_in) {
             vid_start_line(c_out); 
@@ -302,33 +317,23 @@ void cmpr_rle_decode(streaming chanend c_in, streaming chanend c_out) {
 
             printf("DC new line\n");
 
-            ia = 0;
-            ib = 0;
-            buff_hv[ia] = 0;
-
-            dec_with_bytes(cnt, c_in) {
+            dec_with_bytes(rle, c_in) {
                 if (dec_is_escaped(c_in)) {
-                    if (!cnt) {
-                        hv_next = !hv_next;
-                    } else {
-                        buff_hv[ia] -= cnt;
-                        printf("DC got hv rle of %d, ia=%d:%d, ib=%d:%d\n", cnt, ia, buff_hv[ia], ib, buff_hv[ib]);
-                        ia = (ia+1)%8;
-                        buff_hv[ia] = 0;
-                    }
+                    hv_enc = rle;
+                    if (hv_enc == 0) hv_enc = 0xff;
+                    printf("DC reading rle %x\n", hv_enc);
+                    hv_valid = 8;
                     continue;
                 }
 
-                dec_with_bits(bits, c_in, 1) {
-                    printf("DC valid %d, %d, %x\n", __dec_c_in_valid, bits, __dec_c_in_store);
+                dec_with_bits(cbit, c_in, 1) {
+                    printf("DC valid %d, %d, %x\n", __dec_c_in_valid, cbit, __dec_c_in_store);
 
-                    cmpr_logic_dec(bits, hv_next);
-
-                    if (++buff_hv[ib] == 0) {
-                        ib = (ib+1)%8;
-                        hv_next = !hv_next;
-                        printf("DC toggled hv to %d, next rle is %d\n", hv_next, buff_hv[ib]);
+                    if (hv_valid && ((hv_enc >> (--hv_valid)) & 1) ) {
+                        hv_flag = !hv_flag;
+                        printf("DC rle toggled hv to %d, v=%d, e=%x\n", hv_flag, hv_valid, hv_enc);
                     }
+                    cmpr_logic_dec(cbit, hv_flag);
 
                     printf("DC in: c=%d, hv=%d, cv=%d, ch=%d, bv=%d, bh=%d\n",
                             cf, hv, buff_cv[x], buff_ch, buff_bv[x], buff_bh);

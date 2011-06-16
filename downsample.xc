@@ -52,7 +52,7 @@ void downsample(const int n, streaming chanend c_in, streaming chanend c_out) {
             col_sw=0;
             x=0;
 
-            vid_with_bytes(p, c_in) {
+            vid_with_ints(p, c_in) vid_with_bytes(p, c_in) {
                 buffer[x] += p;
                 if (++col_sw==n) {
                     if (row_sw==n) { // we sumed nxn pixels in buffer[x]
