@@ -254,6 +254,12 @@ void cmpr_decode(streaming chanend c_in, streaming chanend c_out) {
 }
 
 
+// We use something like rle for the hv flag:
+// - send c-bits in normal byte stream
+// - escape hv-changes:
+//   if the hv-flag changes for the next byte of c-data, insert an 0xff 0x..
+//   where a bit in 0x.. means, that hv should toggle on that bit.
+
 void cmpr_rle_encode(streaming chanend c_in, streaming chanend c_out) {
     int pixel;
     char hv_enc;
@@ -279,7 +285,7 @@ void cmpr_rle_encode(streaming chanend c_in, streaming chanend c_out) {
                     printf("EC in: px=%d, hv=%d, bv=%d, bh=%d, cv=%d, ch=%d, dv=%d, dh=%d\n", pixel, hv, bv, bh, cv, ch, dv, dh);
                     printf("EC out: hv=%d, cf=%d, c=%d, d=%d, b=%d\n", hv, cf, c, d, b);
 
-                    hv_enc = (hv_enc<<1) | hvt;
+                    hv_enc = (hv_enc<<1) | hvt/**<hv toggle*/;
 
                     enc_add(c_out, cf, 1);
                 }
