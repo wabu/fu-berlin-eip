@@ -26,4 +26,7 @@ enum EncSpecialChar {
 void cmpr_encode(streaming chanend c_in, streaming chanend c_out);
 void cmpr_decode(streaming chanend c_in, streaming chanend c_out);
 
+void cmpr_rle_encode(streaming chanend c_in, streaming chanend c_out);
+void cmpr_rle_decode(streaming chanend c_in, streaming chanend c_out);
+
 #endif

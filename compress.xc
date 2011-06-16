@@ -241,3 +241,103 @@ void cmpr_decode(streaming chanend c_in, streaming chanend c_out) {
     }
 }
 
+
+void cmpr_rle_encode(streaming chanend c_in, streaming chanend c_out) {
+    int pixel;
+    int hv_rle;
+
+    vid_init(c_in);
+    enc_init(c_out);
+    cmpr_logic_vars_init();
+
+    vid_with_frames(c_in) {
+        printf("\nEC new frame\n");
+        enc_escape(c_out, EncNewFrame);
+        cmpr_logic_frame_init();
+
+        vid_with_lines(c_in) {
+            printf("EC new line\n");
+            enc_escape(c_out, EncStartOfLine);
+            cmpr_logic_line_init();
+
+            hv_rle=0;
+
+            vid_with_bytes(pixel, c_in) {
+                cmpr_logic_enc(pixel);
+
+                printf("EC in: px=%d, hv=%d, bv=%d, bh=%d, cv=%d, ch=%d, dv=%d, dh=%d\n", pixel, hv, bv, bh, cv, ch, dv, dh);
+                printf("EC out: hv=%d, cf=%d, c=%d, d=%d, b=%d\n", hv, cf, c, d, b);
+
+                if (hvt) {
+                    printf("EC encoding hv rle of %d\n", hv_rle);
+                    enc_escape(c_out, hv_rle);
+                    hv_rle = 0;
+                }
+                hv_rle++;
+
+                enc_bits(c_out, cf, 1);
+            }
+            //enc_flush(c_out);
+        }
+        //enc_flush(c_out);
+    }
+}
+void cmpr_rle_decode(streaming chanend c_in, streaming chanend c_out) {
+    dec_init(c_in);
+    cmpr_logic_vars_init();
+    int cnt, bits;
+    int hv_next;
+    int buff_hv[8];
+    int ia, ib;
+
+    dec_with_frames(c_in) {
+        printf("\nDC new frame\n");
+        vid_start_frame(c_out);
+        cmpr_logic_frame_init();
+        hv_next = DEFAULT_HV;
+
+        dec_with_lines(c_in) {
+            vid_start_line(c_out); 
+            cmpr_logic_line_init();
+
+            printf("DC new line\n");
+
+            ia = 0;
+            ib = 0;
+            buff_hv[ia] = 0;
+
+            dec_with_bytes(cnt, c_in) {
+                if (dec_is_escaped(c_in)) {
+                    if (!cnt) {
+                        hv_next = !hv_next;
+                    } else {
+                        buff_hv[ia] -= cnt;
+                        printf("DC got hv rle of %d, ia=%d:%d, ib=%d:%d\n", cnt, ia, buff_hv[ia], ib, buff_hv[ib]);
+                        ia = (ia+1)%8;
+                        buff_hv[ia] = 0;
+                    }
+                    continue;
+                }
+
+                dec_with_bits(bits, c_in, 1) {
+                    printf("DC valid %d, %d, %x\n", __dec_c_in_valid, bits, __dec_c_in_store);
+
+                    cmpr_logic_dec(bits, hv_next);
+
+                    if (++buff_hv[ib] == 0) {
+                        ib = (ib+1)%8;
+                        hv_next = !hv_next;
+                        printf("DC toggled hv to %d, next rle is %d\n", hv_next, buff_hv[ib]);
+                    }
+
+                    printf("DC in: c=%d, hv=%d, cv=%d, ch=%d, bv=%d, bh=%d\n",
+                            cf, hv, buff_cv[x], buff_ch, buff_bv[x], buff_bh);
+                    printf("DC out: pix=%d, c=%d\n", b, c);
+
+                    vid_put_pixel(c_out, b);
+                }
+            }
+        }
+    }
+}
+

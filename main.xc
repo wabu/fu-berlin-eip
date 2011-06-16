@@ -17,8 +17,8 @@ int main(void) {
 
     par {
         tst_run_debug_video(vid);
-        cmpr_encode(vid, cmpr);
-        cmpr_decode(cmpr, output);
+        cmpr_rle_encode(vid, cmpr);
+        cmpr_rle_decode(cmpr, output);
         //tst_run_dump_stream(cmpr);
         //tst_run_debug_output(output);
         tst_run_frame_statistics(output,w,h);
