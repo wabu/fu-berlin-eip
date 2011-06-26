@@ -7,7 +7,7 @@
 #define SUB_SAMPLE_WIDTH  VID_WIDTH/SUB_SAMPLERATE 
 
 // TODO: use logging lib instead of printf
-#define printf(...)
+//#define printf(...)
 
 #define enc_init(chan) \
     char __enc_##chan##_store = 0; \
@@ -141,7 +141,7 @@ inline char switch_hvp(char from, char to) {
     buff_hori_b = DEFAULT_PIXEL; \
     buff_hori_c = DEFAULT_C; \
     x=0; \
-    sub_y = y++/SUB_SAMPLERATE
+    sub_y = ++y/SUB_SAMPLERATE
 
 #define cmpr_logic_enc(pixel) \
     bv = buff_vert_b[x]; \
@@ -412,6 +412,7 @@ void cmpr_encode_3d(streaming chanend c_in, streaming chanend c_out) {
         hvp_cnt = 0;
 
         vid_with_lines(c_in) {
+            printf("\nEC new line\n");
             cmpr_logic_line_init();
             
             hvp_bin = 0;
@@ -435,21 +436,22 @@ void cmpr_encode_3d(streaming chanend c_in, streaming chanend c_out) {
                     }
                     
                     // sub sampling of decoded imate
-                    new_buff_b[x/SUB_SAMPLERATE] += b;
-                    new_buff_c[x/SUB_SAMPLERATE] += c;
+                    new_buff_b[(x-1)/SUB_SAMPLERATE] += b;
+                    new_buff_c[(x-1)/SUB_SAMPLERATE] += c;
                 }
             }
+            // FIXME use <= ???
             for(int i = 0; i < hvp_bin;i++) {
                 enc_put(c_out, buff_hvp[i]);
             }
             // sub sampling logic: 'close' sub sampling windows ;)
             if (y % SUB_SAMPLERATE == (SUB_SAMPLERATE-1)) {
+                printf("\nEC subsampling\n");
                 c_out <: VID_NEW_LINE;
                 for(int i=0; i<SUB_SAMPLE_WIDTH; i++) {
                     buff_prev_c[y/SUB_SAMPLERATE][i] = new_buff_c[i]/(SUB_SAMPLERATE*SUB_SAMPLERATE);
                     buff_prev_b[y/SUB_SAMPLERATE][i] = new_buff_b[i]/(SUB_SAMPLERATE*SUB_SAMPLERATE);
                     new_buff_b[i] = new_buff_c[i] = 0;
-                    c_out <: buff_prev_b[y/SUB_SAMPLERATE][i];
                 }
             }
             // TODO warning if x does not match expected VID_WIDTH?

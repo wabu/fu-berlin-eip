@@ -17,6 +17,7 @@
 #define SUB_SAMPLERATE  6
 #endif
 
+
 enum HVP {
     HORIZONTAL = 0,
     VERTICAL   = 1,
