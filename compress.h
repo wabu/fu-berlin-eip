@@ -9,6 +9,20 @@
 #define DEFAULT_PIXEL   DEFAULT_C
 #define DEFAULT_HV      1
 
+#ifndef SYNC_INTERVAL
+#define SYNC_INTERVAL   50
+#endif
+
+#ifndef SUB_SAMPLERATE
+#define SUB_SAMPLERATE  6
+#endif
+
+enum HVP {
+    HORIZONTAL = 0,
+    VERTICAL   = 1,
+    PREVIOUS   = 2
+};
+
 enum EncSpecialChar {
     /* markups */
     NewBits=0x0,
@@ -19,12 +33,15 @@ enum EncSpecialChar {
  //   C_BIT_MASK = 0x01,
  //   H_BIT_MASK = 0x02
 };
+
 /**
- * 
  *
  */
 void cmpr_encode(streaming chanend c_in, streaming chanend c_out);
 void cmpr_decode(streaming chanend c_in, streaming chanend c_out);
+
+void cmpr_encode_3d(streaming chanend c_in, streaming chanend c_out);
+void cmpr_decode_3d(streaming chanend c_in, streaming chanend c_out);
 
 void cmpr_rle_encode(streaming chanend c_in, streaming chanend c_out);
 void cmpr_rle_decode(streaming chanend c_in, streaming chanend c_out);

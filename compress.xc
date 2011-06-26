@@ -3,6 +3,9 @@
 #include <string.h>
 #include <stdio.h>
 
+#define SUB_SAMPLE_HEIGHT VID_HEIGHT/SUB_SAMPLERATE
+#define SUB_SAMPLE_WIDTH  VID_WIDTH/SUB_SAMPLERATE 
+
 // TODO: use logging lib instead of printf
 #define printf(...)
 
@@ -14,8 +17,8 @@
 #define enc_escape(chan, val) \
     chan <: (char)EncEscape; chan <: (char)val
 
-#define enc_add(chan, b, n) \
-    __enc_##chan##_store = (__enc_##chan##_store<<n) | (b&((1<<n)-1)); \
+#define enc_add(chan, val, n) \
+    __enc_##chan##_store = (__enc_##chan##_store<<n) | (val&((1<<n)-1)); \
     __enc_##chan##_valid+=n; \
     if (__enc_##chan##_valid == 8)
 #define enc_filled(chan) \
@@ -39,6 +42,7 @@
     char __dec_##chan##_store = 0; \
     int  __dec_##chan##_valid = 0; \
     char __dec_##chan##_type = 0
+
 inline int __dec_chan_fill(streaming chanend ch, char &d) {
     ch :> d;
     if (d==EncEscape) {
@@ -53,6 +57,7 @@ inline int __dec_chan_fill(streaming chanend ch, char &d) {
     }
     return NewBits;
 }
+
 #define dec_is_escaped(chan) \
     (__dec_##chan##_type == EncEscape && __dec_##chan##_store != EncEscape)
 #define dec_with_frames(chan) \
@@ -86,6 +91,20 @@ inline int update_c(int &c, const int incr_flag) {
 }
 
 /**
+ * since we just commit changes in hvp we need one transmission bit:
+ * current --> change_to   :   bit value
+ * h -> v : 0
+ * h -> p : 1
+ * v -> h : 0
+ * v -> p : 1
+ * p -> h : 0
+ * p -> v : 1
+ */
+inline char switch_hvp(char from, char to) {
+    return from != PREVIOUS ? to == PREVIOUS : to == VERTICAL;
+}
+
+/**
  * Variable Initialisation for the compression algorithm
  * hv: horizontal-vertical flag 
  * b: reconstructed picture values
@@ -94,41 +113,45 @@ inline int update_c(int &c, const int incr_flag) {
  */
 #define cmpr_logic_vars_init() \
     int hv, hvt; \
-    int bv, bh, b; \
-    char buff_bv[VID_WIDTH/*/n*/]; \
-    char buff_bh; \
-    int cv, ch, c, cf; \
-    signed char buff_cv[VID_WIDTH/*/n*/]; \
-    signed char buff_ch; \
-    int dh, dv, d; \
-    int x
+    int bv, bh, bp, b; \
+    char buff_vert_b[VID_WIDTH/*/n*/]; \
+    char buff_hori_b; \
+    int cv, ch, cp, c, cf; \
+    signed char buff_vert_c[VID_WIDTH/*/n*/]; \
+    signed char buff_hori_c; \
+    int dh, dv, dp, d; \
+    int x,y, sub_y
 
 /**
  * compression code to be executed every start of a frame
  */
 #define cmpr_logic_frame_init() \
+    bp = dp = cp = 0; \
     hv = DEFAULT_HV; \
+    y = -1; \
     for (int i=0; i<VID_WIDTH; i++) { \
-        buff_bv[i] = DEFAULT_PIXEL; \
-        buff_cv[i] = DEFAULT_C; \
+        buff_vert_b[i] = DEFAULT_PIXEL; \
+        buff_vert_c[i] = DEFAULT_C; \
     }
 
 /**
  * compression code to be executed every start of a line
  */
 #define cmpr_logic_line_init() \
-    buff_bh = DEFAULT_PIXEL; \
-    buff_ch = DEFAULT_C; \
-    x=0
+    buff_hori_b = DEFAULT_PIXEL; \
+    buff_hori_c = DEFAULT_C; \
+    x=0; \
+    sub_y = y++/SUB_SAMPLERATE
 
 #define cmpr_logic_enc(pixel) \
-    bv = buff_bv[x]; \
-    bh = buff_bh; \
-    cv = buff_cv[x]; \
-    ch = buff_ch; \
+    bv = buff_vert_b[x]; \
+    bh = buff_hori_b; \
+    cv = buff_vert_c[x]; \
+    ch = buff_hori_c; \
      \
     dh = bh+ch-pixel; \
     dv = bv+cv-pixel; \
+    dp = 0; \
      \
     hvt = 0; \
     if (!hv && abs(dh)<abs(dv)-10) { \
@@ -151,10 +174,79 @@ inline int update_c(int &c, const int incr_flag) {
      \
     cf = update_c(c, (d*c<0)); \
      \
-    buff_bv[x] = b; \
-    buff_bh = b; \
-    buff_cv[x] = c; \
-    buff_ch = c; \
+    buff_vert_b[x] = b; \
+    buff_hori_b = b; \
+    buff_vert_c[x] = c; \
+    buff_hori_c = c; \
+     \
+    x++
+
+#define cmpr_logic_enc_3d(pixel) \
+    bv = buff_vert_b[x]; \
+    bh = buff_hori_b; \
+    bp = buff_prev_b[sub_y][x/SUB_SAMPLERATE]; \
+    cv = buff_vert_c[x]; \
+    ch = buff_hori_c; \
+    cp = buff_prev_c[sub_y][x/SUB_SAMPLERATE]; \
+     \
+    dh = bh+ch-pixel; \
+    dv = bv+cv-pixel; \
+    dp = bp+cp-pixel; \
+     \
+    hvt = 0; \
+    if (hv == HORIZONTAL) { \
+      if(abs(dh)<abs(dv)-10) { \
+        hv = VERTICAL; \
+        hvt = 1; \
+      } \
+      if(abs(dh) < abs(dp)-10) { \
+        hv = PREVIOUS; \
+        hvt = 1; \
+      } \
+    } else if (hv == VERTICAL) { \
+        if ( abs(dv) < abs(dh)-10) { \
+            hv = HORIZONTAL; \
+            hvt = 1; \
+        } \
+        if (abs(dv) < abs(dp)-10) { \
+            hv = PREVIOUS; \
+            hvt = 1; \
+        } \
+    } else if (hv == PREVIOUS) { \
+        if ( abs(dp) < abs(dh)-10) { \
+            hv = HORIZONTAL; \
+            hvt = 1; \
+        } \
+        if (abs(dp) < abs(dv)-10) { \
+            hv = VERTICAL; \
+            hvt = 1; \
+        } \
+    } \
+     \
+    switch (hv) { \
+    case HORIZONTAL: \
+        d = dh; \
+        c = ch; \
+        b = bh+c; \
+        break; \
+    case VERTICAL: \
+        d = dv; \
+        c = cv; \
+        b = bv+c; \
+        break; \
+    default: \
+        d = dp; \
+        c = cp; \
+        b = bp + c;\
+        break; \
+    } \
+     \
+    cf = update_c(c, (d*c<0)); \
+     \
+    buff_vert_b[x] = b; \
+    buff_hori_b = b; \
+    buff_vert_c[x] = c; \
+    buff_hori_c = c; \
      \
     x++
 
@@ -166,10 +258,10 @@ inline int update_c(int &c, const int incr_flag) {
     cf = cf_in; \
     hv = hv_in; \
      \
-    bh = buff_bh; \
-    bv = buff_bv[x]; \
-    ch = buff_ch; \
-    cv = buff_cv[x]; \
+    bh = buff_hori_b; \
+    bv = buff_vert_b[x]; \
+    ch = buff_hori_c; \
+    cv = buff_vert_c[x]; \
      \
     if (hv) { \
         c = ch; \
@@ -181,10 +273,10 @@ inline int update_c(int &c, const int incr_flag) {
      \
     update_c(c, cf); \
      \
-    buff_cv[x] = c; \
-    buff_ch = c; \
-    buff_bv[x] = b; \
-    buff_bh = b; \
+    buff_vert_c[x] = c; \
+    buff_hori_c = c; \
+    buff_vert_b[x] = b; \
+    buff_hori_b = b; \
      \
     x++
 
@@ -243,13 +335,127 @@ void cmpr_decode(streaming chanend c_in, streaming chanend c_out) {
                     cmpr_logic_dec(bits&C_BIT_MASK, (bits&H_BIT_MASK)>>1);
 
                     printf("DC in: c=%d, hv=%d, cv=%d, ch=%d, bv=%d, bh=%d\n",
-                            cf, hv, buff_cv[x], buff_ch, buff_bv[x], buff_bh);
+                            cf, hv, buff_vert_c[x], buff_hori_c, buff_vert_b[x], buff_hori_b);
                     printf("DC out: pix=%d, c=%d\n", b, c);
 
                     vid_put_pixel(c_out, b);
                 }
             }
         }
+    }
+}
+
+
+void cmpr_encode_3d(streaming chanend c_in, streaming chanend c_out) {
+// what do we need?
+// frame counter for sync
+// sub sampled image 8x8 4x4?
+// hv is now hvp used as horizontal vertical previous flag
+
+
+// hvp-pixel counter as we submit hvp at the end of each line
+// hv-encoding-rle-logic in buffer
+
+// steps:
+// frame_init 
+//   sub sampled image with DEFAULT_PIXEL values: buff_prev_b;
+//   sub sampled c values                         buff_prev_c
+//   hvp is 'p'
+//   c = DEFAULT_C
+
+// receive pixel p(x,y)
+// do parallel sub sampling (buffer, counter needed)
+// > distances: d_h, d_v, d_p
+// >   choose bias best distance
+// > calculate 'c' value with update_flag
+
+
+// replace prev_img_buffer with sub sampled image
+
+    int pixel;
+
+    int frames_to_next_sync = 0;
+
+    signed char buff_prev_c[SUB_SAMPLE_HEIGHT][SUB_SAMPLE_WIDTH];
+    char        buff_prev_b[SUB_SAMPLE_HEIGHT][SUB_SAMPLE_WIDTH];
+    int         new_buff_c[SUB_SAMPLE_WIDTH];
+    int         new_buff_b[SUB_SAMPLE_WIDTH];
+    
+    char        buff_hvp[VID_WIDTH];
+    char        hvp_bin, hvp_current, hvp_cnt;
+
+    vid_init(c_in);
+    enc_init(c_out);
+    cmpr_logic_vars_init();
+
+    vid_with_frames(c_in) {
+        printf("\nEC new frame\n");
+        enc_escape(c_out, EncNewFrame);
+        // number of pixels per line
+        enc_put(c_out, VID_WIDTH);
+        // synchronization flag 
+        enc_put(c_out, frames_to_next_sync == 0);
+        // if synchronization is forced, our previous anchor is set to
+        // default values instead of expected decoded values
+        if (frames_to_next_sync == 0) {
+            frames_to_next_sync = SYNC_INTERVAL;
+            for(int j = 0; j < SUB_SAMPLE_HEIGHT; j++) {
+                for( int i = 0; i < SUB_SAMPLE_WIDTH; i++) {
+                    buff_prev_c[j][i] = DEFAULT_C;
+                    buff_prev_b[j][i] = DEFAULT_PIXEL;
+                }
+            }
+        }
+        cmpr_logic_frame_init();
+
+        hvp_current = hv;
+        hvp_cnt = 0;
+
+        vid_with_lines(c_in) {
+            cmpr_logic_line_init();
+            
+            hvp_bin = 0;
+
+            vid_with_ints(pixel, c_in) {
+                vid_with_bytes(pixel, c_in) {
+                    cmpr_logic_enc_3d(pixel); 
+                    enc_add(c_out, cf, 1);
+
+                    if (hvt) {
+                       buff_hvp[hvp_bin++] = ((hvp_cnt << 1) | switch_hvp(hvp_current, hv));
+                       hvp_cnt = 1;
+                    } else {
+                        hvp_cnt++;
+                        // check against 2^7+1 to avoid problems if hvp toggles 
+                        // at next pixel
+                        if (hvp_cnt == 127) {
+                            buff_hvp[hvp_bin++] = (char) EncEscape;
+                            hvp_cnt = 0;
+                        }
+                    }
+                    
+                    // sub sampling of decoded imate
+                    new_buff_b[x/SUB_SAMPLERATE] += b;
+                    new_buff_c[x/SUB_SAMPLERATE] += c;
+                }
+            }
+            for(int i = 0; i < hvp_bin;i++) {
+                enc_put(c_out, buff_hvp[i]);
+            }
+            // sub sampling logic: 'close' sub sampling windows ;)
+            if (y % SUB_SAMPLERATE == (SUB_SAMPLERATE-1)) {
+                c_out <: VID_NEW_LINE;
+                for(int i=0; i<SUB_SAMPLE_WIDTH; i++) {
+                    buff_prev_c[y/SUB_SAMPLERATE][i] = new_buff_c[i]/(SUB_SAMPLERATE*SUB_SAMPLERATE);
+                    buff_prev_b[y/SUB_SAMPLERATE][i] = new_buff_b[i]/(SUB_SAMPLERATE*SUB_SAMPLERATE);
+                    new_buff_b[i] = new_buff_c[i] = 0;
+                    c_out <: buff_prev_b[y/SUB_SAMPLERATE][i];
+                }
+            }
+            // TODO warning if x does not match expected VID_WIDTH?
+            y++;
+        }
+        // 
     }
 }
 
@@ -342,7 +548,7 @@ void cmpr_rle_decode(streaming chanend c_in, streaming chanend c_out) {
                     cmpr_logic_dec(cbit, hv_flag);
 
                     printf("DC in: c=%d, hv=%d, cv=%d, ch=%d, bv=%d, bh=%d\n",
-                            cf, hv, buff_cv[x], buff_ch, buff_bv[x], buff_bh);
+                            cf, hv, buff_vert_c[x], buff_hori_c, buff_vert_b[x], buff_hori_b);
                     printf("DC out: pix=%d, c=%d\n", b, c);
 
                     vid_put_pixel(c_out, b);
