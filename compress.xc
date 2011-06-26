@@ -28,6 +28,9 @@
     if (__enc_##chan##_store == EncEscape) chan <: (char)EncEscape; \
     chan <: __enc_##chan##_store; \
     __enc_##chan##_valid = 0
+#define enc_flush_raw(chan) \
+    chan <: __enc_##chan##_store; \
+    __enc_##chan##_valid = 0
 
 #define enc_bits(chan, b, n) \
     __enc_##chan##_store = (__enc_##chan##_store<<n) | (b&((1<<n)-1)); \
@@ -195,47 +198,53 @@ inline char switch_hvp(char from, char to) {
      \
     hvt = 0; \
     if (hv == HORIZONTAL) { \
-      if(abs(dh)<abs(dv)-10) { \
+      d = dh; \
+      if(abs(dv) < abs(d)-10) { \
         hv = VERTICAL; \
         hvt = 1; \
+        d = dv; \
       } \
-      if(abs(dh) < abs(dp)-10) { \
+      if(abs(dp) < abs(d) - (hvt ? 0 : 10)) { \
         hv = PREVIOUS; \
         hvt = 1; \
+        d = dp; \
       } \
     } else if (hv == VERTICAL) { \
-        if ( abs(dv) < abs(dh)-10) { \
-            hv = HORIZONTAL; \
-            hvt = 1; \
-        } \
-        if (abs(dv) < abs(dp)-10) { \
-            hv = PREVIOUS; \
-            hvt = 1; \
-        } \
+      d = dv; \
+      if(abs(dh) < abs(d)-10) { \
+        hv = HORIZONTAL; \
+        hvt = 1; \
+        d = dh; \
+      } \
+      if(abs(dp) < abs(d) - (hvt ? 0 : 10)) { \
+        hv = PREVIOUS; \
+        hvt = 1; \
+        d = dp; \
+      } \
     } else if (hv == PREVIOUS) { \
-        if ( abs(dp) < abs(dh)-10) { \
-            hv = HORIZONTAL; \
-            hvt = 1; \
-        } \
-        if (abs(dp) < abs(dv)-10) { \
-            hv = VERTICAL; \
-            hvt = 1; \
-        } \
+      d = dp; \
+      if(abs(dh) < abs(d)-10) { \
+        hv = HORIZONTAL; \
+        hvt = 1; \
+        d = dh; \
+      } \
+      if(abs(dv) < abs(d) - (hvt ? 0 : 10)) { \
+        hv = VERTICAL; \
+        hvt = 1; \
+        d = dv; \
+      } \
     } \
      \
     switch (hv) { \
     case HORIZONTAL: \
-        d = dh; \
         c = ch; \
         b = bh+c; \
         break; \
     case VERTICAL: \
-        d = dv; \
         c = cv; \
         b = bv+c; \
         break; \
     default: \
-        d = dp; \
         c = cp; \
         b = bp + c;\
         break; \
@@ -394,7 +403,7 @@ void cmpr_encode_3d(streaming chanend c_in, streaming chanend c_out) {
         // number of pixels per line
         enc_put(c_out, VID_WIDTH);
         // synchronization flag 
-        enc_put(c_out, frames_to_next_sync == 0);
+        enc_put(c_out, (frames_to_next_sync == 0));
         // if synchronization is forced, our previous anchor is set to
         // default values instead of expected decoded values
         if (frames_to_next_sync == 0) {
@@ -405,25 +414,29 @@ void cmpr_encode_3d(streaming chanend c_in, streaming chanend c_out) {
                     buff_prev_b[j][i] = DEFAULT_PIXEL;
                 }
             }
+        } else {
+            frames_to_next_sync--;
         }
         cmpr_logic_frame_init();
 
         hvp_current = hv;
-        hvp_cnt = 0;
 
         vid_with_lines(c_in) {
-            printf("\nEC new line\n");
+            printf("EC new line\n");
             cmpr_logic_line_init();
             
             hvp_bin = 0;
+            hvp_cnt = 0;
 
             vid_with_ints(pixel, c_in) {
                 vid_with_bytes(pixel, c_in) {
                     cmpr_logic_enc_3d(pixel); 
                     enc_add(c_out, cf, 1);
 
+                    //printf("%1d", hv);
                     if (hvt) {
                        buff_hvp[hvp_bin++] = ((hvp_cnt << 1) | switch_hvp(hvp_current, hv));
+                       hvp_current = hv;
                        hvp_cnt = 1;
                     } else {
                         hvp_cnt++;
@@ -439,23 +452,26 @@ void cmpr_encode_3d(streaming chanend c_in, streaming chanend c_out) {
                     new_buff_b[(x-1)/SUB_SAMPLERATE] += b;
                     new_buff_c[(x-1)/SUB_SAMPLERATE] += c;
                 }
+                if(enc_filled(c_out)) {
+                    enc_flush_raw(c_out);
+                }
             }
-            // FIXME use <= ???
+            buff_hvp[hvp_bin++] = ((hvp_cnt+1) << 1);
+
+            printf("EC hvp\n");
             for(int i = 0; i < hvp_bin;i++) {
                 enc_put(c_out, buff_hvp[i]);
             }
             // sub sampling logic: 'close' sub sampling windows ;)
             if (y % SUB_SAMPLERATE == (SUB_SAMPLERATE-1)) {
-                printf("\nEC subsampling\n");
-                c_out <: VID_NEW_LINE;
+                printf("EC subsampling\n");
                 for(int i=0; i<SUB_SAMPLE_WIDTH; i++) {
-                    buff_prev_c[y/SUB_SAMPLERATE][i] = new_buff_c[i]/(SUB_SAMPLERATE*SUB_SAMPLERATE);
-                    buff_prev_b[y/SUB_SAMPLERATE][i] = new_buff_b[i]/(SUB_SAMPLERATE*SUB_SAMPLERATE);
+                    buff_prev_c[sub_y][i] = new_buff_c[i]/(SUB_SAMPLERATE*SUB_SAMPLERATE);
+                    buff_prev_b[sub_y][i] = new_buff_b[i]/(SUB_SAMPLERATE*SUB_SAMPLERATE);
                     new_buff_b[i] = new_buff_c[i] = 0;
                 }
             }
             // TODO warning if x does not match expected VID_WIDTH?
-            y++;
         }
         // 
     }

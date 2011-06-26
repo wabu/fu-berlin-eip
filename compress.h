@@ -19,8 +19,8 @@
 
 
 enum HVP {
-    HORIZONTAL = 0,
-    VERTICAL   = 1,
+    VERTICAL   = 0,
+    HORIZONTAL = 1,
     PREVIOUS   = 2
 };
 
