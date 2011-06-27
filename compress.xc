@@ -355,6 +355,107 @@ void cmpr_decode(streaming chanend c_in, streaming chanend c_out) {
 }
 
 
+
+
+// We use something like rle for the hv flag:
+// - send c-bits in normal byte stream
+// - escape hv-changes:
+//   if the hv-flag changes for the next byte of c-data, insert an 0xff 0x..
+//   where a bit in 0x.. means, that hv should toggle on that bit.
+
+void cmpr_rle_encode(streaming chanend c_in, streaming chanend c_out) {
+    int pixel;
+    char hv_enc;
+
+    vid_init(c_in);
+    enc_init(c_out);
+    cmpr_logic_vars_init();
+
+    vid_with_frames(c_in) {
+        printf("\nEC new frame\n");
+        enc_escape(c_out, EncNewFrame);
+        cmpr_logic_frame_init();
+
+        vid_with_lines(c_in) {
+            printf("EC new line\n");
+            enc_escape(c_out, EncStartOfLine);
+            cmpr_logic_line_init();
+
+            vid_with_ints(pixel, c_in) {
+                vid_with_bytes(pixel, c_in) {
+                    cmpr_logic_enc(pixel);
+
+                    printf("EC in: px=%d, hv=%d, bv=%d, bh=%d, cv=%d, ch=%d, dv=%d, dh=%d\n", pixel, hv, bv, bh, cv, ch, dv, dh);
+                    printf("EC out: hv=%d, cf=%d, c=%d, d=%d, b=%d\n", hv, cf, c, d, b);
+
+                    hv_enc = (hv_enc<<1) | hvt/**<hv toggle*/;
+
+                    enc_add(c_out, cf, 1);
+                }
+                if (enc_filled(c_out)) {
+                    if (hv_enc) {
+                        if (hv_enc == 0xff) hv_enc = 0;
+                        printf("EC rle flag set, hv_enc=%x\n", hv_enc);
+                        enc_escape(c_out, hv_enc);
+                        hv_enc = 0;
+                    }
+                    enc_flush(c_out);
+                }
+            }
+        }
+    }
+}
+void cmpr_rle_decode(streaming chanend c_in, streaming chanend c_out) {
+    dec_init(c_in);
+    cmpr_logic_vars_init();
+    char cbit, rle;
+
+    char hv_enc;
+    char hv_valid;
+    char hv_flag;
+
+    dec_with_frames(c_in) {
+        printf("\nDC new frame\n");
+        vid_start_frame(c_out);
+        cmpr_logic_frame_init();
+        hv_flag = DEFAULT_HV;
+
+        dec_with_lines(c_in) {
+            vid_start_line(c_out); 
+            cmpr_logic_line_init();
+
+            printf("DC new line\n");
+
+            dec_with_bytes(rle, c_in) {
+                if (dec_is_escaped(c_in)) {
+                    hv_enc = rle;
+                    if (hv_enc == 0) hv_enc = 0xff;
+                    printf("DC reading rle %x\n", hv_enc);
+                    hv_valid = 8;
+                    continue;
+                }
+
+                dec_with_bits(cbit, c_in, 1) {
+                    printf("DC valid %d, %d, %x\n", __dec_c_in_valid, cbit, __dec_c_in_store);
+
+                    if (hv_valid && ((hv_enc >> (--hv_valid)) & 1) ) {
+                        hv_flag = !hv_flag;
+                        printf("DC rle toggled hv to %d, v=%d, e=%x\n", hv_flag, hv_valid, hv_enc);
+                    }
+                    cmpr_logic_dec(cbit, hv_flag);
+
+                    printf("DC in: c=%d, hv=%d, cv=%d, ch=%d, bv=%d, bh=%d\n",
+                            cf, hv, buff_vert_c[x], buff_hori_c, buff_vert_b[x], buff_hori_b);
+                    printf("DC out: pix=%d, c=%d\n", b, c);
+
+                    vid_put_pixel(c_out, b);
+                }
+            }
+        }
+    }
+}
+
+
 void cmpr_encode_3d(streaming chanend c_in, streaming chanend c_out) {
 // what do we need?
 // frame counter for sync
@@ -476,103 +577,3 @@ void cmpr_encode_3d(streaming chanend c_in, streaming chanend c_out) {
         // 
     }
 }
-
-
-// We use something like rle for the hv flag:
-// - send c-bits in normal byte stream
-// - escape hv-changes:
-//   if the hv-flag changes for the next byte of c-data, insert an 0xff 0x..
-//   where a bit in 0x.. means, that hv should toggle on that bit.
-
-void cmpr_rle_encode(streaming chanend c_in, streaming chanend c_out) {
-    int pixel;
-    char hv_enc;
-
-    vid_init(c_in);
-    enc_init(c_out);
-    cmpr_logic_vars_init();
-
-    vid_with_frames(c_in) {
-        printf("\nEC new frame\n");
-        enc_escape(c_out, EncNewFrame);
-        cmpr_logic_frame_init();
-
-        vid_with_lines(c_in) {
-            printf("EC new line\n");
-            enc_escape(c_out, EncStartOfLine);
-            cmpr_logic_line_init();
-
-            vid_with_ints(pixel, c_in) {
-                vid_with_bytes(pixel, c_in) {
-                    cmpr_logic_enc(pixel);
-
-                    printf("EC in: px=%d, hv=%d, bv=%d, bh=%d, cv=%d, ch=%d, dv=%d, dh=%d\n", pixel, hv, bv, bh, cv, ch, dv, dh);
-                    printf("EC out: hv=%d, cf=%d, c=%d, d=%d, b=%d\n", hv, cf, c, d, b);
-
-                    hv_enc = (hv_enc<<1) | hvt/**<hv toggle*/;
-
-                    enc_add(c_out, cf, 1);
-                }
-                if (enc_filled(c_out)) {
-                    if (hv_enc) {
-                        if (hv_enc == 0xff) hv_enc = 0;
-                        printf("EC rle flag set, hv_enc=%x\n", hv_enc);
-                        enc_escape(c_out, hv_enc);
-                        hv_enc = 0;
-                    }
-                    enc_flush(c_out);
-                }
-            }
-        }
-    }
-}
-void cmpr_rle_decode(streaming chanend c_in, streaming chanend c_out) {
-    dec_init(c_in);
-    cmpr_logic_vars_init();
-    char cbit, rle;
-
-    char hv_enc;
-    char hv_valid;
-    char hv_flag;
-
-    dec_with_frames(c_in) {
-        printf("\nDC new frame\n");
-        vid_start_frame(c_out);
-        cmpr_logic_frame_init();
-        hv_flag = DEFAULT_HV;
-
-        dec_with_lines(c_in) {
-            vid_start_line(c_out); 
-            cmpr_logic_line_init();
-
-            printf("DC new line\n");
-
-            dec_with_bytes(rle, c_in) {
-                if (dec_is_escaped(c_in)) {
-                    hv_enc = rle;
-                    if (hv_enc == 0) hv_enc = 0xff;
-                    printf("DC reading rle %x\n", hv_enc);
-                    hv_valid = 8;
-                    continue;
-                }
-
-                dec_with_bits(cbit, c_in, 1) {
-                    printf("DC valid %d, %d, %x\n", __dec_c_in_valid, cbit, __dec_c_in_store);
-
-                    if (hv_valid && ((hv_enc >> (--hv_valid)) & 1) ) {
-                        hv_flag = !hv_flag;
-                        printf("DC rle toggled hv to %d, v=%d, e=%x\n", hv_flag, hv_valid, hv_enc);
-                    }
-                    cmpr_logic_dec(cbit, hv_flag);
-
-                    printf("DC in: c=%d, hv=%d, cv=%d, ch=%d, bv=%d, bh=%d\n",
-                            cf, hv, buff_vert_c[x], buff_hori_c, buff_vert_b[x], buff_hori_b);
-                    printf("DC out: pix=%d, c=%d\n", b, c);
-
-                    vid_put_pixel(c_out, b);
-                }
-            }
-        }
-    }
-}
-
