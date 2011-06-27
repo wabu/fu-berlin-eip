@@ -7,7 +7,7 @@
 #define SUB_SAMPLE_WIDTH  VID_WIDTH/SUB_SAMPLERATE 
 
 // TODO: use logging lib instead of printf
-//#define printf(...)
+#define printf(...)
 
 #define enc_init(chan) \
     char __enc_##chan##_store = 0; \
@@ -61,6 +61,17 @@ inline int __dec_chan_fill(streaming chanend ch, char &d) {
     return NewBits;
 }
 
+inline int __dec_raw_read(streaming chanend ch, char &d) {
+    ch :> d;
+    return d;
+}
+#define dec_raw_read(chan) \
+    __dec_raw_read(chan, __dec_##chan##_store)
+#define dec_with_raw_n_bytes(var, n, chan) \
+    for (int i=0; \
+         i<n && ((var = __dec_raw_read(chan,__dec_##chan##_store))||1); \
+         i++)
+
 #define dec_is_escaped(chan) \
     (__dec_##chan##_type == EncEscape && __dec_##chan##_store != EncEscape)
 #define dec_with_frames(chan) \
@@ -105,6 +116,9 @@ inline int update_c(int &c, const int incr_flag) {
  */
 inline char switch_dir(char from, char to) {
     return from != PREVIOUS ? to == PREVIOUS : to == VERTICAL;
+}
+inline char calc_dir(char old, char flag) {
+    return flag ? (old == PREVIOUS ? VERTICAL : PREVIOUS) : (old == HORIZONTAL ? VERTICAL : HORIZONTAL);
 }
 
 /**
@@ -501,7 +515,7 @@ void cmpr3_encode(streaming chanend c_in, streaming chanend c_out) {
         printf("\nEC new frame\n");
         enc_escape(c_out, EncNewFrame);
         // number of pixels per line
-        enc_put(c_out, VID_WIDTH);
+        enc_put(c_out, 48);//VID_WIDTH); // FIXME real calculated value !!!!
         // synchronization flag 
         enc_put(c_out, (frames_to_next_sync == 0));
         // if synchronization is forced, our previous anchor is set to
@@ -522,6 +536,7 @@ void cmpr3_encode(streaming chanend c_in, streaming chanend c_out) {
         dir_current = dir;
 
         vid_with_lines(c_in) {
+            enc_escape(c_out, EncStartOfLine);
             printf("EC new line\n");
             cmpr_logic_line_init();
             
@@ -533,7 +548,7 @@ void cmpr3_encode(streaming chanend c_in, streaming chanend c_out) {
                     cmpr3_logic_enc(pixel); 
                     enc_add(c_out, cf, 1);
 
-                    //printf("%1d", dir);
+                    printf("d%1d ", dir);
                     if (dir_toggled) {
                        buff_dir[dir_bin++] = ((dir_cnt << 1) | switch_dir(dir_current, dir));
                        dir_current = dir;
@@ -574,6 +589,139 @@ void cmpr3_encode(streaming chanend c_in, streaming chanend c_out) {
             // TODO warning if x does not match expected VID_WIDTH?
         }
         // 
+    }
+}
+
+//#undef printf
+void cmpr3_decode(streaming chanend c_in, streaming chanend c_out) {
+    char b_vert_buff[VID_WIDTH]; \
+    char b_hori_buff; \
+    signed char c_vert_buff[VID_WIDTH]; \
+    signed char c_hori_buff; \
+
+    unsigned char b_prev_buff[SUB_SAMPLE_HEIGHT][SUB_SAMPLE_WIDTH];
+    signed   char c_prev_buff[SUB_SAMPLE_HEIGHT][SUB_SAMPLE_WIDTH];
+    signed   char c_buff[VID_WIDTH/8];
+
+    int c_sampled[SUB_SAMPLE_WIDTH];
+    int b_sampled[SUB_SAMPLE_WIDTH];
+
+    unsigned char rle_buff[VID_WIDTH];
+    int rle_cnt;
+    int x,y, sub_x, sub_y;
+
+    dec_init(c_in);
+    dec_with_frames(c_in) {
+        int width = dec_raw_read(c_in);
+        char sync = dec_raw_read(c_in);
+
+        char c_flag, c_bin, dir_val, dir_next, rle;
+
+        printf("DC new frame\n", c_flag);
+
+        if (sync) {
+            for(int j = 0; j < SUB_SAMPLE_HEIGHT; j++) {
+                for( int i = 0; i < SUB_SAMPLE_WIDTH; i++) {
+                    c_prev_buff[j][i] = DEFAULT_C;
+                    b_prev_buff[j][i] = DEFAULT_PIXEL;
+                }
+            }
+        }
+        dir_val = DEFAULT_HV;
+
+        vid_start_frame(c_out);
+
+        for (int i=0; i<VID_WIDTH; i++) {
+            b_vert_buff[i] = DEFAULT_PIXEL;
+            c_vert_buff[i] = DEFAULT_C;
+        }
+
+        y=0;
+        sub_y = 0;
+        for(dec_raw_read(c_in); dec_raw_read(c_in) == EncStartOfLine; dec_raw_read(c_in)) {
+            printf("DC filling c_buff ... \n", c_flag);
+            dec_with_raw_n_bytes(c_flag, width/8, c_in) {
+                c_buff[i]=c_flag;
+            }
+
+            rle_cnt = 0;
+            for (int i=0; i<width; i+=rle) {
+                rle = dec_raw_read(c_in);
+                rle_buff[rle_cnt++] = rle;
+                rle = rle >> 1;
+            }
+
+            vid_start_line(c_out);
+
+            b_hori_buff = DEFAULT_PIXEL;
+            c_hori_buff = DEFAULT_C;
+
+            rle_cnt = 0;
+
+            rle = rle_buff[rle_cnt++];
+
+            dir_next = rle==0xff ? dir_val : calc_dir(dir_val, rle & 0x1);
+            rle = rle >> 1;
+
+            x = 0;
+            sub_x=0;
+            for (int i=0; i<width/8; i++) {
+                c_bin = c_buff[i];
+                for (int j=0; j<8; j++) {
+                    int c, b;
+                    c_flag = (c_bin&0xa0) >> 7;
+                    c_bin = c_bin << 1;
+
+                    if (rle == 0) {
+                        dir_val = dir_next;
+
+                        rle = rle_buff[rle_cnt++];
+                        dir_next = rle==0xff ? dir_val : calc_dir(dir_val, rle & 0x1);
+                        rle = (rle>>1);
+                    }
+                    rle--;
+
+                    printf("DC in: c_flag=%d, dir_val=%d\n", c_flag, dir_val);
+                    switch(dir_val) {
+                    case HORIZONTAL:
+                        c = c_hori_buff;
+                        b = b_hori_buff + c;
+                        break;
+                    case VERTICAL:
+                        c = c_vert_buff[x];
+                        b = b_vert_buff[x] + c;
+                        break;
+                    case PREVIOUS:
+                        c = c_prev_buff[sub_y][sub_x];
+                        b = b_prev_buff[sub_y][sub_x] + c;
+                        break;
+                    }
+
+                    update_c(c, c_flag);
+
+                    vid_put_pixel(c_out, b);
+
+                    b_hori_buff = b;
+                    c_hori_buff = c;
+                    b_vert_buff[x] = b;
+                    c_vert_buff[x] = c;
+                    b_sampled[sub_x] += b;
+                    c_sampled[sub_x] += c;
+
+                    if (!(++x%SUB_SAMPLERATE)) sub_x++;
+                }
+            }
+
+            if (y % SUB_SAMPLERATE == (SUB_SAMPLERATE-1)) {
+                for(int i=0; i<SUB_SAMPLE_WIDTH; i++) {
+                    b_prev_buff[sub_y][i] = b_sampled[i]/(SUB_SAMPLERATE*SUB_SAMPLERATE);
+                    c_prev_buff[sub_y][i] = c_sampled[i]/(SUB_SAMPLERATE*SUB_SAMPLERATE);
+                    b_sampled[i] = c_sampled[i] = 0;
+                }
+            }
+
+            if (!(++y%SUB_SAMPLERATE)) sub_y++;
+        }
     }
 }
 
