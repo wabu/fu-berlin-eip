@@ -78,14 +78,14 @@ XC_DEPS += \
 src/%.o: ../src/%.xc
 	@echo 'Building file: $<'
 	@echo 'Invoking: XC Compiler'
-	xcc -O0 -g -Wall -c -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d) $@ " -o $@ "$<" "../XC-1.xn"
+	xcc -O3 -g -Wall -c -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d) $@ " -o $@ "$<" "../XC-1.xn"
 	@echo 'Finished building: $<'
 	@echo ' '
 
 src/%.o: ../src/%.c
 	@echo 'Building file: $<'
 	@echo 'Invoking: C Compiler'
-	xcc -O0 -g -Wall -c -std=gnu89 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d) $@ " -o $@ "$<" "../XC-1.xn"
+	xcc -O3 -g -Wall -c -std=gnu89 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d) $@ " -o $@ "$<" "../XC-1.xn"
 	@echo 'Finished building: $<'
 	@echo ' '
 

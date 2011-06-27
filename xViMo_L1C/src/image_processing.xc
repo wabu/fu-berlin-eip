@@ -10,7 +10,7 @@
 void imgproc_FirstStep(streaming chanend dataIn, streaming chanend dataOut, streaming chanend udpDataOut)
 {
 	unsigned char camPix;
-	unsigned char result = 0;
+	unsigned char result = 0x00;
 
 	set_thread_fast_mode_on();
 	while(1)
@@ -24,7 +24,7 @@ void imgproc_FirstStep(streaming chanend dataIn, streaming chanend dataOut, stre
 		// Verarbeitungsergebnis evtl. zum nächsten Verarbeitungsschritt schicken
 		dataOut <: result;
 		// Original Kamerapixel (Bit0:7) und Verarbeitungsergebnis(Bit8:15) an udpDaten hängen
-		udpDataOut <: (unsigned int)camPix || ((unsigned int)result << 8);
+		udpDataOut <: (unsigned int) (camPix | ((unsigned int)result << 8));
 	}
 }
 
