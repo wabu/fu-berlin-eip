@@ -41,8 +41,8 @@ enum EncSpecialChar {
 void cmpr_encode(streaming chanend c_in, streaming chanend c_out);
 void cmpr_decode(streaming chanend c_in, streaming chanend c_out);
 
-void cmpr_encode_3d(streaming chanend c_in, streaming chanend c_out);
-void cmpr_decode_3d(streaming chanend c_in, streaming chanend c_out);
+void cmpr3_encode(streaming chanend c_in, streaming chanend c_out);
+void cmpr3_decode(streaming chanend c_in, streaming chanend c_out);
 
 void cmpr_rle_encode(streaming chanend c_in, streaming chanend c_out);
 void cmpr_rle_decode(streaming chanend c_in, streaming chanend c_out);

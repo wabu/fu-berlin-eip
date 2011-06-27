@@ -103,19 +103,19 @@ inline int update_c(int &c, const int incr_flag) {
  * p -> h : 0
  * p -> v : 1
  */
-inline char switch_hvp(char from, char to) {
+inline char switch_dir(char from, char to) {
     return from != PREVIOUS ? to == PREVIOUS : to == VERTICAL;
 }
 
 /**
  * Variable Initialisation for the compression algorithm
- * hv: horizontal-vertical flag 
+ * dir: horizontal-vertical flag 
  * b: reconstructed picture values
  * c: change value in encoded picture
  * d: distance reconstructed to original
  */
 #define cmpr_logic_vars_init() \
-    int hv, hvt; \
+    int dir, dir_toggled; \
     int bv, bh, bp, b; \
     char buff_vert_b[VID_WIDTH/*/n*/]; \
     char buff_hori_b; \
@@ -130,7 +130,7 @@ inline char switch_hvp(char from, char to) {
  */
 #define cmpr_logic_frame_init() \
     bp = dp = cp = 0; \
-    hv = DEFAULT_HV; \
+    dir = DEFAULT_HV; \
     y = -1; \
     for (int i=0; i<VID_WIDTH; i++) { \
         buff_vert_b[i] = DEFAULT_PIXEL; \
@@ -156,16 +156,16 @@ inline char switch_hvp(char from, char to) {
     dv = bv+cv-pixel; \
     dp = 0; \
      \
-    hvt = 0; \
-    if (!hv && abs(dh)<abs(dv)-10) { \
-        hv = 1; \
-        hvt = 1; \
-    } else if (hv && abs(dh) > abs(dv)+10) { \
-        hv = 0; \
-        hvt = 1; \
+    dir_toggled = 0; \
+    if (!dir && abs(dh)<abs(dv)-10) { \
+        dir = 1; \
+        dir_toggled = 1; \
+    } else if (dir && abs(dh) > abs(dv)+10) { \
+        dir = 0; \
+        dir_toggled = 1; \
     } \
      \
-    if (hv) { \
+    if (dir) { \
         d = dh; \
         c = ch; \
         b = bh+c; \
@@ -184,7 +184,7 @@ inline char switch_hvp(char from, char to) {
      \
     x++
 
-#define cmpr_logic_enc_3d(pixel) \
+#define cmpr3_logic_enc(pixel) \
     bv = buff_vert_b[x]; \
     bh = buff_hori_b; \
     bp = buff_prev_b[sub_y][x/SUB_SAMPLERATE]; \
@@ -196,46 +196,46 @@ inline char switch_hvp(char from, char to) {
     dv = bv+cv-pixel; \
     dp = bp+cp-pixel; \
      \
-    hvt = 0; \
-    if (hv == HORIZONTAL) { \
+    dir_toggled = 0; \
+    if (dir == HORIZONTAL) { \
       d = dh; \
       if(abs(dv) < abs(d)-10) { \
-        hv = VERTICAL; \
-        hvt = 1; \
+        dir = VERTICAL; \
+        dir_toggled = 1; \
         d = dv; \
       } \
-      if(abs(dp) < abs(d) - (hvt ? 0 : 10)) { \
-        hv = PREVIOUS; \
-        hvt = 1; \
+      if(abs(dp) < abs(d) - (dir_toggled ? 0 : 10)) { \
+        dir = PREVIOUS; \
+        dir_toggled = 1; \
         d = dp; \
       } \
-    } else if (hv == VERTICAL) { \
+    } else if (dir == VERTICAL) { \
       d = dv; \
       if(abs(dh) < abs(d)-10) { \
-        hv = HORIZONTAL; \
-        hvt = 1; \
+        dir = HORIZONTAL; \
+        dir_toggled = 1; \
         d = dh; \
       } \
-      if(abs(dp) < abs(d) - (hvt ? 0 : 10)) { \
-        hv = PREVIOUS; \
-        hvt = 1; \
+      if(abs(dp) < abs(d) - (dir_toggled ? 0 : 10)) { \
+        dir = PREVIOUS; \
+        dir_toggled = 1; \
         d = dp; \
       } \
-    } else if (hv == PREVIOUS) { \
+    } else if (dir == PREVIOUS) { \
       d = dp; \
       if(abs(dh) < abs(d)-10) { \
-        hv = HORIZONTAL; \
-        hvt = 1; \
+        dir = HORIZONTAL; \
+        dir_toggled = 1; \
         d = dh; \
       } \
-      if(abs(dv) < abs(d) - (hvt ? 0 : 10)) { \
-        hv = VERTICAL; \
-        hvt = 1; \
+      if(abs(dv) < abs(d) - (dir_toggled ? 0 : 10)) { \
+        dir = VERTICAL; \
+        dir_toggled = 1; \
         d = dv; \
       } \
     } \
      \
-    switch (hv) { \
+    switch (dir) { \
     case HORIZONTAL: \
         c = ch; \
         b = bh+c; \
@@ -260,19 +260,19 @@ inline char switch_hvp(char from, char to) {
     x++
 
 #define cmpr_logic_dec(cf_in, hv_in) \
-    hvt=0; /*unused*/ \
+    dir_toggled=0; /*unused*/ \
     dh = 0; /*unused*/ \
     dv = 0; /*unused*/ \
     d = 0; /*unused*/ \
     cf = cf_in; \
-    hv = hv_in; \
+    dir = hv_in; \
      \
     bh = buff_hori_b; \
     bv = buff_vert_b[x]; \
     ch = buff_hori_c; \
     cv = buff_vert_c[x]; \
      \
-    if (hv) { \
+    if (dir) { \
         c = ch; \
         b = bh + c; \
     } else { \
@@ -310,10 +310,10 @@ void cmpr_encode(streaming chanend c_in, streaming chanend c_out) {
                 vid_with_bytes(pixel, c_in) {
                     cmpr_logic_enc(pixel);
 
-                    printf("EC in: px=%d, hv=%d, bv=%d, bh=%d, cv=%d, ch=%d, dv=%d, dh=%d\n", pixel, hv, bv, bh, cv, ch, dv, dh);
-                    printf("EC out: hv=%d, cf=%d, c=%d, d=%d, b=%d\n", hv, cf, c, d, b);
+                    printf("EC in: px=%d, dir=%d, bv=%d, bh=%d, cv=%d, ch=%d, dv=%d, dh=%d\n", pixel, dir, bv, bh, cv, ch, dv, dh);
+                    printf("EC out: dir=%d, cf=%d, c=%d, d=%d, b=%d\n", dir, cf, c, d, b);
 
-                    enc_add(c_out, ((hv<<1)| cf), 2);
+                    enc_add(c_out, ((dir<<1)| cf), 2);
                 }
                 enc_flush(c_out);
             }
@@ -343,8 +343,8 @@ void cmpr_decode(streaming chanend c_in, streaming chanend c_out) {
 
                     cmpr_logic_dec(bits&C_BIT_MASK, (bits&H_BIT_MASK)>>1);
 
-                    printf("DC in: c=%d, hv=%d, cv=%d, ch=%d, bv=%d, bh=%d\n",
-                            cf, hv, buff_vert_c[x], buff_hori_c, buff_vert_b[x], buff_hori_b);
+                    printf("DC in: c=%d, dir=%d, cv=%d, ch=%d, bv=%d, bh=%d\n",
+                            cf, dir, buff_vert_c[x], buff_hori_c, buff_vert_b[x], buff_hori_b);
                     printf("DC out: pix=%d, c=%d\n", b, c);
 
                     vid_put_pixel(c_out, b);
@@ -357,11 +357,11 @@ void cmpr_decode(streaming chanend c_in, streaming chanend c_out) {
 
 
 
-// We use something like rle for the hv flag:
+// We use something like rle for the dir flag:
 // - send c-bits in normal byte stream
-// - escape hv-changes:
-//   if the hv-flag changes for the next byte of c-data, insert an 0xff 0x..
-//   where a bit in 0x.. means, that hv should toggle on that bit.
+// - escape dir-changes:
+//   if the dir-flag changes for the next byte of c-data, insert an 0xff 0x..
+//   where a bit in 0x.. means, that dir should toggle on that bit.
 
 void cmpr_rle_encode(streaming chanend c_in, streaming chanend c_out) {
     int pixel;
@@ -385,10 +385,10 @@ void cmpr_rle_encode(streaming chanend c_in, streaming chanend c_out) {
                 vid_with_bytes(pixel, c_in) {
                     cmpr_logic_enc(pixel);
 
-                    printf("EC in: px=%d, hv=%d, bv=%d, bh=%d, cv=%d, ch=%d, dv=%d, dh=%d\n", pixel, hv, bv, bh, cv, ch, dv, dh);
-                    printf("EC out: hv=%d, cf=%d, c=%d, d=%d, b=%d\n", hv, cf, c, d, b);
+                    printf("EC in: px=%d, dir=%d, bv=%d, bh=%d, cv=%d, ch=%d, dv=%d, dh=%d\n", pixel, dir, bv, bh, cv, ch, dv, dh);
+                    printf("EC out: dir=%d, cf=%d, c=%d, d=%d, b=%d\n", dir, cf, c, d, b);
 
-                    hv_enc = (hv_enc<<1) | hvt/**<hv toggle*/;
+                    hv_enc = (hv_enc<<1) | dir_toggled/**<dir toggle*/;
 
                     enc_add(c_out, cf, 1);
                 }
@@ -440,12 +440,12 @@ void cmpr_rle_decode(streaming chanend c_in, streaming chanend c_out) {
 
                     if (hv_valid && ((hv_enc >> (--hv_valid)) & 1) ) {
                         hv_flag = !hv_flag;
-                        printf("DC rle toggled hv to %d, v=%d, e=%x\n", hv_flag, hv_valid, hv_enc);
+                        printf("DC rle toggled dir to %d, v=%d, e=%x\n", hv_flag, hv_valid, hv_enc);
                     }
                     cmpr_logic_dec(cbit, hv_flag);
 
-                    printf("DC in: c=%d, hv=%d, cv=%d, ch=%d, bv=%d, bh=%d\n",
-                            cf, hv, buff_vert_c[x], buff_hori_c, buff_vert_b[x], buff_hori_b);
+                    printf("DC in: c=%d, dir=%d, cv=%d, ch=%d, bv=%d, bh=%d\n",
+                            cf, dir, buff_vert_c[x], buff_hori_c, buff_vert_b[x], buff_hori_b);
                     printf("DC out: pix=%d, c=%d\n", b, c);
 
                     vid_put_pixel(c_out, b);
@@ -455,16 +455,15 @@ void cmpr_rle_decode(streaming chanend c_in, streaming chanend c_out) {
     }
 }
 
-
-void cmpr_encode_3d(streaming chanend c_in, streaming chanend c_out) {
+void cmpr3_encode(streaming chanend c_in, streaming chanend c_out) {
 // what do we need?
 // frame counter for sync
 // sub sampled image 8x8 4x4?
-// hv is now hvp used as horizontal vertical previous flag
+// dir is now hvp used as horizontal vertical previous flag
 
 
 // hvp-pixel counter as we submit hvp at the end of each line
-// hv-encoding-rle-logic in buffer
+// dir-encoding-rle-logic in buffer
 
 // steps:
 // frame_init 
@@ -491,8 +490,8 @@ void cmpr_encode_3d(streaming chanend c_in, streaming chanend c_out) {
     int         new_buff_c[SUB_SAMPLE_WIDTH];
     int         new_buff_b[SUB_SAMPLE_WIDTH];
     
-    char        buff_hvp[VID_WIDTH];
-    char        hvp_bin, hvp_current, hvp_cnt;
+    char        buff_dir[VID_WIDTH];
+    int         dir_bin, dir_current, dir_cnt;
 
     vid_init(c_in);
     enc_init(c_out);
@@ -520,32 +519,32 @@ void cmpr_encode_3d(streaming chanend c_in, streaming chanend c_out) {
         }
         cmpr_logic_frame_init();
 
-        hvp_current = hv;
+        dir_current = dir;
 
         vid_with_lines(c_in) {
             printf("EC new line\n");
             cmpr_logic_line_init();
             
-            hvp_bin = 0;
-            hvp_cnt = 0;
+            dir_bin = 0;
+            dir_cnt = 0;
 
             vid_with_ints(pixel, c_in) {
                 vid_with_bytes(pixel, c_in) {
-                    cmpr_logic_enc_3d(pixel); 
+                    cmpr3_logic_enc(pixel); 
                     enc_add(c_out, cf, 1);
 
-                    //printf("%1d", hv);
-                    if (hvt) {
-                       buff_hvp[hvp_bin++] = ((hvp_cnt << 1) | switch_hvp(hvp_current, hv));
-                       hvp_current = hv;
-                       hvp_cnt = 1;
+                    //printf("%1d", dir);
+                    if (dir_toggled) {
+                       buff_dir[dir_bin++] = ((dir_cnt << 1) | switch_dir(dir_current, dir));
+                       dir_current = dir;
+                       dir_cnt = 1;
                     } else {
-                        hvp_cnt++;
+                        dir_cnt++;
                         // check against 2^7+1 to avoid problems if hvp toggles 
                         // at next pixel
-                        if (hvp_cnt == 127) {
-                            buff_hvp[hvp_bin++] = (char) EncEscape;
-                            hvp_cnt = 0;
+                        if (dir_cnt == 127) {
+                            buff_dir[dir_bin++] = (char) EncEscape;
+                            dir_cnt = 0;
                         }
                     }
                     
@@ -557,11 +556,11 @@ void cmpr_encode_3d(streaming chanend c_in, streaming chanend c_out) {
                     enc_flush_raw(c_out);
                 }
             }
-            buff_hvp[hvp_bin++] = ((hvp_cnt+1) << 1);
+            buff_dir[dir_bin++] = ((dir_cnt+1) << 1);
 
             printf("EC hvp\n");
-            for(int i = 0; i < hvp_bin;i++) {
-                enc_put(c_out, buff_hvp[i]);
+            for(int i = 0; i < dir_bin;i++) {
+                enc_put(c_out, buff_dir[i]);
             }
             // sub sampling logic: 'close' sub sampling windows ;)
             if (y % SUB_SAMPLERATE == (SUB_SAMPLERATE-1)) {
@@ -577,3 +576,4 @@ void cmpr_encode_3d(streaming chanend c_in, streaming chanend c_out) {
         // 
     }
 }
+
