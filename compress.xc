@@ -213,36 +213,36 @@ inline char calc_dir(char old, char flag) {
     dir_toggled = 0; \
     if (dir == HORIZONTAL) { \
       d = dh; \
-      if(abs(dv) < abs(d)-10) { \
+      if(abs(dv) < abs(d)-00) { \
         dir = VERTICAL; \
         dir_toggled = 1; \
         d = dv; \
       } \
-      if(abs(dp) < abs(d) - (dir_toggled ? 0 : 10)) { \
+      if(abs(dp) < abs(d) - (dir_toggled ? 0 : 00)) { \
         dir = PREVIOUS; \
         dir_toggled = 1; \
         d = dp; \
       } \
     } else if (dir == VERTICAL) { \
       d = dv; \
-      if(abs(dh) < abs(d)-10) { \
+      if(abs(dh) < abs(d)-00) { \
         dir = HORIZONTAL; \
         dir_toggled = 1; \
         d = dh; \
       } \
-      if(abs(dp) < abs(d) - (dir_toggled ? 0 : 10)) { \
+      if(abs(dp) < abs(d) - (dir_toggled ? 0 : 00)) { \
         dir = PREVIOUS; \
         dir_toggled = 1; \
         d = dp; \
       } \
     } else if (dir == PREVIOUS) { \
       d = dp; \
-      if(abs(dh) < abs(d)-10) { \
+      if(abs(dh) < abs(d)-00) { \
         dir = HORIZONTAL; \
         dir_toggled = 1; \
         d = dh; \
       } \
-      if(abs(dv) < abs(d) - (dir_toggled ? 0 : 10)) { \
+      if(abs(dv) < abs(d) - (dir_toggled ? 0 : 00)) { \
         dir = VERTICAL; \
         dir_toggled = 1; \
         d = dv; \
@@ -511,6 +511,10 @@ void cmpr3_encode(streaming chanend c_in, streaming chanend c_out) {
     enc_init(c_out);
     cmpr_logic_vars_init();
 
+    for (int i=0; i<SUB_SAMPLE_WIDTH; i++)
+        new_buff_b[i] = new_buff_c[i] = 0;
+
+
     vid_with_frames(c_in) {
         printf("\nEC new frame\n");
         enc_escape(c_out, EncNewFrame);
@@ -565,7 +569,7 @@ void cmpr3_encode(streaming chanend c_in, streaming chanend c_out) {
                     
                     // sub sampling of decoded imate
                     new_buff_b[(x-1)/SUB_SAMPLERATE] += b;
-                    new_buff_c[(x-1)/SUB_SAMPLERATE] += c;
+                    if (abs(new_buff_c[(x-1)/SUB_SAMPLERATE]) < abs(c)) new_buff_c[(x-1)/SUB_SAMPLERATE] = c;
                 }
                 if(enc_filled(c_out)) {
                     enc_flush_raw(c_out);
@@ -581,7 +585,7 @@ void cmpr3_encode(streaming chanend c_in, streaming chanend c_out) {
             if (y % SUB_SAMPLERATE == (SUB_SAMPLERATE-1)) {
                 printf("EC subsampling\n");
                 for(int i=0; i<SUB_SAMPLE_WIDTH; i++) {
-                    buff_prev_c[sub_y][i] = new_buff_c[i]/(SUB_SAMPLERATE*SUB_SAMPLERATE);
+                    buff_prev_c[sub_y][i] = new_buff_c[i];
                     buff_prev_b[sub_y][i] = new_buff_b[i]/(SUB_SAMPLERATE*SUB_SAMPLERATE);
                     new_buff_b[i] = new_buff_c[i] = 0;
                 }
@@ -611,6 +615,10 @@ void cmpr3_decode(streaming chanend c_in, streaming chanend c_out) {
     int x,y, sub_x, sub_y;
 
     dec_init(c_in);
+
+    for (int i=0; i<SUB_SAMPLE_WIDTH; i++) 
+        b_sampled[i] = c_sampled[i] = 0;
+
     dec_with_frames(c_in) {
         int width = dec_raw_read(c_in);
         char sync = dec_raw_read(c_in);
@@ -699,6 +707,7 @@ void cmpr3_decode(streaming chanend c_in, streaming chanend c_out) {
 
                     update_c(c, c_flag);
 
+                    if(b>0xfd) b=0xfd;
                     vid_put_pixel(c_out, b);
 
                     b_hori_buff = b;
@@ -706,21 +715,24 @@ void cmpr3_decode(streaming chanend c_in, streaming chanend c_out) {
                     b_vert_buff[x] = b;
                     c_vert_buff[x] = c;
                     b_sampled[sub_x] += b;
-                    c_sampled[sub_x] += c;
+                    if (abs(c_sampled[sub_x]) < abs(c)) c_sampled[sub_x] = c;
 
                     if (!(++x%SUB_SAMPLERATE)) sub_x++;
                 }
             }
 
-            if (y % SUB_SAMPLERATE == (SUB_SAMPLERATE-1)) {
+//#undef printf
+            if (!(++y%SUB_SAMPLERATE)) {
+                printf("\nsub");
                 for(int i=0; i<SUB_SAMPLE_WIDTH; i++) {
                     b_prev_buff[sub_y][i] = b_sampled[i]/(SUB_SAMPLERATE*SUB_SAMPLERATE);
-                    c_prev_buff[sub_y][i] = c_sampled[i]/(SUB_SAMPLERATE*SUB_SAMPLERATE);
+                    c_prev_buff[sub_y][i] = c_sampled[i];
+                    printf(".%02x", c_prev_buff[sub_y][i]);
                     b_sampled[i] = c_sampled[i] = 0;
                 }
+                printf("bus\n");
+                sub_y++;
             }
-
-            if (!(++y%SUB_SAMPLERATE)) sub_y++;
         }
     }
 }
