@@ -213,36 +213,36 @@ inline char calc_dir(char old, char flag) {
     dir_toggled = 0; \
     if (dir == HORIZONTAL) { \
       d = dh; \
-      if(abs(dv) < abs(d)-00) { \
+      if(abs(dv) < abs(d)-10) { \
         dir = VERTICAL; \
         dir_toggled = 1; \
         d = dv; \
       } \
-      if(abs(dp) < abs(d) - (dir_toggled ? 0 : 00)) { \
+      if(abs(dp) < abs(d) - (dir_toggled ? 0 : 10)) { \
         dir = PREVIOUS; \
         dir_toggled = 1; \
         d = dp; \
       } \
     } else if (dir == VERTICAL) { \
       d = dv; \
-      if(abs(dh) < abs(d)-00) { \
+      if(abs(dh) < abs(d)-10) { \
         dir = HORIZONTAL; \
         dir_toggled = 1; \
         d = dh; \
       } \
-      if(abs(dp) < abs(d) - (dir_toggled ? 0 : 00)) { \
+      if(abs(dp) < abs(d) - (dir_toggled ? 0 : 10)) { \
         dir = PREVIOUS; \
         dir_toggled = 1; \
         d = dp; \
       } \
     } else if (dir == PREVIOUS) { \
       d = dp; \
-      if(abs(dh) < abs(d)-00) { \
+      if(abs(dh) < abs(d)-10) { \
         dir = HORIZONTAL; \
         dir_toggled = 1; \
         d = dh; \
       } \
-      if(abs(dv) < abs(d) - (dir_toggled ? 0 : 00)) { \
+      if(abs(dv) < abs(d) - (dir_toggled ? 0 : 10)) { \
         dir = VERTICAL; \
         dir_toggled = 1; \
         d = dv; \
@@ -386,6 +386,7 @@ void cmpr_rle_encode(streaming chanend c_in, streaming chanend c_out) {
     cmpr_logic_vars_init();
 
     vid_with_frames(c_in) {
+        int cnt=0;
         printf("\nEC new frame\n");
         enc_escape(c_out, EncNewFrame);
         cmpr_logic_frame_init();
@@ -410,9 +411,11 @@ void cmpr_rle_encode(streaming chanend c_in, streaming chanend c_out) {
                     if (hv_enc) {
                         if (hv_enc == 0xff) hv_enc = 0;
                         printf("EC rle flag set, hv_enc=%x\n", hv_enc);
+                        cnt+=2;
                         enc_escape(c_out, hv_enc);
                         hv_enc = 0;
                     }
+                    cnt++;
                     enc_flush(c_out);
                 }
             }
@@ -707,8 +710,7 @@ void cmpr3_decode(streaming chanend c_in, streaming chanend c_out) {
 
                     update_c(c, c_flag);
 
-                    if(b>0xfd) b=0xfd;
-                    vid_put_pixel(c_out, b);
+                    vid_put_pixel(c_out, b>0xfd ? 0xfd : b);
 
                     b_hori_buff = b;
                     c_hori_buff = c;

@@ -14,7 +14,7 @@
 #endif
 
 #ifndef SUB_SAMPLERATE
-#define SUB_SAMPLERATE  6
+#define SUB_SAMPLERATE  8
 #endif
 
 

@@ -10,7 +10,7 @@
 
 int main(void) {
     int w=48;//VID_WIDTH;
-    int h=36;//VID_HEIGHT;
+    int h=32;//VID_HEIGHT;
 
     streaming chan vid, cmpr, output;
     tst_setup(w,h);

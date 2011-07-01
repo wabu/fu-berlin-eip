@@ -1,8 +1,8 @@
 #define VID_NEW_FRAME 0xFEFEFEFE
 #define VID_NEW_LINE  0xFFFFFFFF
 
-#define VID_WIDTH     240
-#define VID_HEIGHT    180
+#define VID_WIDTH     160
+#define VID_HEIGHT    120
 
 #define chan_init(name, type, chan) \
     type __##name##_##chan##_type = 0; \
