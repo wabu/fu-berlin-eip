@@ -10,6 +10,7 @@ C_SRCS += \
 ../src/swlock.c 
 
 XC_SRCS += \
+../src/averaging.xc \
 ../src/cam.xc \
 ../src/delays.xc \
 ../src/eth_phy.xc \
@@ -28,6 +29,7 @@ XC_SRCS += \
 ../src/udp.xc 
 
 OBJS += \
+./src/averaging.o \
 ./src/cam.o \
 ./src/checksum.o \
 ./src/delays.o \
@@ -56,6 +58,7 @@ C_DEPS += \
 ./src/swlock.d 
 
 XC_DEPS += \
+./src/averaging.d \
 ./src/cam.d \
 ./src/delays.d \
 ./src/eth_phy.d \
