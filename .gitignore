@@ -1,0 +1,6 @@
+*.o
+*.xe
+*.swp
+cscope.out
+.project
+.metadata/
