@@ -3,17 +3,14 @@
 #include "compress.h"
 #include "config.h"
 
-inline int update_c(int *c, const int incr_flag) {
-    if (incr_flag) {
-        *c = *c+*c/2;
-    } else {
-        *c=-*c;
-        if (abs(*c)>=CMPR_C_MIN*2) *c=*c/2;
-    }
-    return incr_flag;
-}
 
+////
+/// cmpr2 Storage Class
+//
 
+/**
+ * holding state for cmpr encoder/decoder
+ */
 typedef struct cmpr {
     int w,h;
     int x,y;
@@ -27,36 +24,165 @@ typedef struct cmpr {
     signed char c_hori;
 } cmpr;
 
-cmpr_ref cmpr_create(int w, int h) {
-    cmpr_ref ref; 
-    cmpr *p;
 
-    ref.p = (cmpr*)malloc(sizeof(cmpr));
-    if (!ref.p)
-        return ref;
+/**
+ * frees resources allocated by p.
+ * Note: p itself is not freed
+ * \param p pointer to p struct
+ */
+void cmpr_free(cmpr *p) {
+    if (!p) return;
 
-    p = ref.p;
+    if (p->b_vert) free(p->b_vert);
+    if (p->c_vert) free(p->c_vert);
+
+    p->b_vert = 0;
+    p->c_vert = 0;
+}
+
+/** 
+ * initialices cmpr struct, frees p on falure
+ * @param p pointer to allocated struct
+ * @return  p on success, frees p and returns 0 on failure 
+ */
+cmpr *cmpr_init(cmpr *p, int w, int h) {
+    if (!p) 
+        return 0;
 
     p->b_vert = (unsigned char*)malloc(sizeof(char) * w);
     p->c_vert = (signed char*)malloc(sizeof(char) * w);
 
     if (!p->b_vert || !p->c_vert) {
-        if (p->b_vert) free(p->b_vert);
-        if (p->c_vert) free(p->c_vert);
+        cmpr_free(p);
         free(p);
-        ref.p = 0;
-        return ref;
+        return 0;
     }
 
     p->w = w;
     p->h = h;
 
+    return p;
+}
+
+
+
+////
+/// cmpr3 Storage Class
+//
+
+/**
+ * holding state for cmpr3 encoder/decoder. 
+ * subclass of cmpr enocder/decoder
+ * @see cmpr
+ */
+typedef struct cmpr3 {
+    cmpr super;
+
+    int sub;  /**< subsample rate */
+    int sync_cnt, sync_val;     /** syncronistation counter and value */
+
+    unsigned char **b_prev;
+    signed char **c_prev;
+
+    unsigned char *b_prevp; /**< pointer to current subsampling b-cell */
+    signed char *c_prevp;   /**< pointer to current subsampling c-cell */
+} cmpr3;
+
+/**
+ * frees resources allocated by q.
+ * Note: q itself is not freed
+ * \param q pointer to p struct
+ */
+void cmpr3_free(cmpr3 *q) {
+    if (!q) return;
+
+    cmpr_free(&(q->super));
+
+    if(q->b_prev) free(q->b_prev);
+    if(q->c_prev) free(q->c_prev);
+
+    q->b_prev = 0;
+    q->c_prev = 0;
+}
+
+/** 
+ * initialices cmpr struct, frees q on falure
+ * @param q pointer to allocated struct
+ * @return  q on success, frees p and returns 0 on failure 
+ */
+cmpr3 *cmpr3_init(cmpr3* q, int w, int h, int sub, int sync) {
+    if (!cmpr_init(&(q->super), w, h))
+        return 0;
+
+    q->b_prev = malloc(sizeof(char)*w*h/sub/sub);
+    q->c_prev = malloc(sizeof(char)*w*h/sub/sub);
+
+    if (!q->b_prev || !q->c_prev) {
+        cmpr3_free(q);
+        free(q);
+
+        return 0;
+    }
+
+    q->sub = sub;
+    q->sync_val = sync;
+    q->sync_cnt = 0;
+
+    return q;
+}
+
+////
+/// Codec's Functionality
+//
+
+inline int update_c(int *c, const int incr_flag) {
+    if (incr_flag) {
+        *c = *c+*c/2;
+    } else {
+        *c=-*c;
+        if (abs(*c)>=CMPR_C_MIN*2) *c=*c/2;
+    }
+    return incr_flag;
+}
+
+
+
+////
+/// Interface Implementation
+//
+
+cmpr_ref cmpr_create(int w, int h) {
+    cmpr_ref ref; 
+    cmpr *p;
+
+    p = (cmpr*)malloc(sizeof(cmpr));
+    ref.p = cmpr_init(p, w, h);
+
     return ref;
 }
 
 void cmpr_delete(cmpr_ref ref) {
+    if (!ref.p) return 0;
+    cmpr_free(ref.p);
     free(ref.p);
     ref.p = 0;
+}
+
+cmpr3_ref cmpr3_create(int w, int h, int sub, int sync) {
+    cmpr3_ref ref; 
+    cmpr3 *q; 
+
+    q = (cmpr3*)malloc(sizeof(cmpr3));
+    ref.q = cmpr3_init(q, w, h, sub, sync);
+
+    return ref;
+}
+
+void cmpr3_delete(cmpr3_ref ref) {
+    if (!ref.q) return 0;
+    cmpr3_free(ref.q);
+    free(ref.q);
+    ref.q = 0;
 }
 
 __inline__ void cmpr_start_frame(cmpr_ref ref) {
@@ -170,13 +296,6 @@ __inline__ int  cmpr_dec(cmpr_ref ref, char enc) {
 
     return out;
 }
-
-
-typedef struct cmpr3 {
-} cmpr3;
-
-cmpr3_ref cmpr3_init(int w, int h, int sync);
-void cmpr3_delete(cmpr3_ref ref);
 
 __inline__ void cmpr3_enc_push(cmpr3_ref ref, int raw);
 __inline__ void cmpr3_enc_finish_line(cmpr3_ref ref);

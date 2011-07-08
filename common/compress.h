@@ -41,7 +41,10 @@ typedef struct cmpr3_ref {
 #ifdef __XC__
     int p;
 #else
-    struct cmpr3* p;
+    union {
+        struct cmpr *p;
+        struct cmpr3 *q;
+    };
 #endif
 } cmpr3_ref;
 
@@ -50,10 +53,11 @@ typedef struct cmpr3_ref {
  * @param ref   referenc to the encoder object
  * @param w width of frames
  * @param h height of frames
+ * @param sub   subsample rate to save reference frame
  * @param sync  rate of syncronisation (in frames/sync)
  * @return  encoder object reference
  */
-cmpr3_ref cmpr3_init(int w, int h, int sync);
+cmpr3_ref cmpr3_create(int w, int h, int sub, int sync);
 void cmpr3_delete(cmpr3_ref ref);
 
 /**
