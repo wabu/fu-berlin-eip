@@ -48,12 +48,6 @@
 
 // Bildgröße
 #define UDP_PIXEL_WIDTH 640
-#define CAM_PIXEL_WIDTH 160
-#define CAM_PIXEL_HEIGHT 120
-
-// Kammerageschwindigkeit
-// Kamerafrequenz = 100MHz / CAM_FREQ_DIV; (CAM_FREQ_DIV = 4,6,8,10...)
-#define CAM_FREQ_DIV 4
 
 
 #endif

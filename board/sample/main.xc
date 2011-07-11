@@ -8,7 +8,6 @@
 #include "ethernet_tx_client.h"
 #include "checksum.h"
 #include "cam.h"
-#include "i2c.h"
 #include "udp.h"
 #include "conf.h"
 #include "image_processing.h"

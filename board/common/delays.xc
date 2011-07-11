@@ -1,10 +1,10 @@
 #include <xs1.h>
 #include "delays.h"
 
-	#define TIME_US 98
-	#define TIME_MS 999998
+#define TIME_US 98
+#define TIME_MS 999998
 
-	timer xTimer;
+timer xTimer;
 
 void delayus(unsigned int us)
 {

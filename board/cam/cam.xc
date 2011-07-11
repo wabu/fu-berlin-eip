@@ -9,7 +9,6 @@
 #include "i2c.h"
 #include "delays.h"
 #include <xclib.h>
-#include "conf.h"
 
 #define DATA_TIMER_DELAY (CAM_FREQ_DIV*8)
 
