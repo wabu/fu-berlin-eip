@@ -21,15 +21,15 @@ typedef struct cmpr {
     signed char *c_vert;
     signed char c_hori;
 
-    unsigned char *b_vertp;
-    signed char *c_vertp;
+    int *b_vertp;
+    int *c_vertp;
 } cmpr;
 
 /** context for codec comptations */
 typedef struct cmpr_context {
-    unsigned char b_val, b_vert, b_hori;
-    signed char c_vert, c_hori, c_flag, c_val;
-    signed short d_val, d_vert, d_hori;
+    int b_val, b_vert, b_hori;
+    int c_vert, c_hori, c_flag, c_val;
+    int d_val, d_vert, d_hori;
 } cmpr_context;
 
 /**
@@ -168,7 +168,7 @@ static inline void cmpr_context_load(cmpr *p, cmpr_context *c, int pixel) {
 }
 
 static inline void cmpr_context_update_c(cmpr *p, cmpr_context *ctx) {
-    signed char *c = &(ctx->c_val);
+    int *c = &(ctx->c_val);
     if (ctx->c_flag) {
         (*c) = (*c) + (*c)/2;
     } else {
