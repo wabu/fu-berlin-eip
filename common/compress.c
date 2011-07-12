@@ -21,8 +21,8 @@ typedef struct cmpr {
     signed char *c_vert;
     signed char c_hori;
 
-    int *b_vertp;
-    int *c_vertp;
+    unsigned char *b_vertp;
+    signed char *c_vertp;
 } cmpr;
 
 /** context for codec comptations */
@@ -240,7 +240,7 @@ void cmpr3_delete(cmpr3_ref ref) {
     ref.p = 0;
 }
 
-void cmpr_start_frame(cmpr_ref ref) {
+static inline void cmpr_start_frame(cmpr_ref ref) {
     cmpr *p = (cmpr *)ref.p;
 
     p->dir = CMPR_HV_DEFAULT;
@@ -250,7 +250,7 @@ void cmpr_start_frame(cmpr_ref ref) {
         p->c_vert[i] = CMPR_C_DEFAULT;
     }
 }
-void cmpr_start_line(cmpr_ref ref) {
+static inline void cmpr_start_line(cmpr_ref ref) {
     cmpr *p = (cmpr *)ref.p;
 
     p->b_hori = CMPR_B_DEFAULT;
@@ -260,7 +260,7 @@ void cmpr_start_line(cmpr_ref ref) {
     p->c_vertp = p->c_vert;
 }
 
-char cmpr_enc(cmpr_ref ref, int raw) {
+static inline char cmpr_enc(cmpr_ref ref, int raw) {
     cmpr_context c;
     char out;
 
@@ -295,7 +295,7 @@ char cmpr_enc(cmpr_ref ref, int raw) {
     return out;
 }
 
-int  cmpr_dec(cmpr_ref ref, char enc) {
+static inline int  cmpr_dec(cmpr_ref ref, char enc) {
     int out = 0;
     cmpr *p = (cmpr *)ref.p;
     cmpr_context c;
@@ -322,6 +322,118 @@ int  cmpr_dec(cmpr_ref ref, char enc) {
 
     return out;
 }
+
+#include "compat.h"
+void cmpr_encoder(streaming chanend cin, streaming chanend cout) {
+    cmpr_ref r = cmpr_create(VID_WIDTH, VID_HEIGHT);
+    cmpr_context c;
+    char out;
+
+    cmpr *p = (cmpr *)r.p;
+    int raw;
+    char enc;
+
+    for (;;) {
+        raw = creadi(cin);
+        switch (raw) {
+            case VID_NEW_FRAME:
+                cwritec(cout, CMPR_ESCAPE);
+                cwritec(cout, CMPR_NEW_FRAME);
+                cmpr_start_frame(r);
+                break;
+            case VID_NEW_LINE:
+                cwritec(cout, CMPR_ESCAPE);
+                cwritec(cout, CMPR_NEW_LINE);
+                cmpr_start_line(r);
+                break;
+            default:
+
+    for (int valid=32, pixel = (raw >> (valid-=8)) & 0xff;
+             valid>=0; pixel = (raw >> (valid-=8)) & 0xff) {
+
+        cmpr_context_load(p, &c, pixel);
+
+        if (p->dir == VERTICAL && abs(c.d_hori) < abs(c.d_vert)+CMPR_CHANGE_BIAS) {
+            p->dir = HORIZONTAL;
+        } else 
+        if (p->dir == HORIZONTAL && abs(c.d_vert) < abs(c.d_hori)+CMPR_CHANGE_BIAS) {
+            p->dir = VERTICAL;
+        }
+        
+        cmpr_context_select_dir(p, &c);
+
+        c.c_flag = (c.d_val * (c.c_val) < 0);
+
+        cmpr_context_update_c(p, &c);
+
+        cmpr_context_store(p, &c);
+
+        out <<= 2;
+        out |= (p->dir<<1) | c.c_flag;
+
+        (p->b_vertp)++;
+        (p->c_vertp)++;
+    }
+    //            enc = cmpr_enc(r, raw);
+    enc = out;
+                if (enc == CMPR_ESCAPE) cwritec(cout, CMPR_ESCAPE);
+                cwritec(cout, enc);
+                break;
+        }
+    }
+}
+
+void cmpr_decoder(streaming chanend cin, streaming chanend cout) {
+    cmpr_ref r = cmpr_create(VID_WIDTH, VID_HEIGHT);
+    int raw;
+    char enc;
+    int out = 0;
+    cmpr *p = (cmpr *)r.p;
+    cmpr_context c;
+
+    for (;;) {
+        enc = creadc(cin);
+        if (enc == CMPR_ESCAPE) {
+            enc = creadc(cin);
+            switch (enc) {
+            case CMPR_NEW_FRAME:
+                cwritei(cout, VID_NEW_FRAME);
+                cmpr_start_frame(r);
+                continue;
+            case CMPR_NEW_LINE:
+                cwritei(cout, VID_NEW_LINE);
+                cmpr_start_line(r);
+                continue;
+            default:
+                break;
+            }
+        }
+
+    for (int valid= 8, ch = (enc >> (valid-=2));
+             valid>=0; ch = (enc >> (valid-=2))) {
+        c.c_flag = ch & 0x1;
+        p->dir   = (ch>>1) & 0x1;
+        
+        cmpr_context_load(p, &c, 0);
+	cmpr_context_select_dir(p, &c);
+
+        //printf("(%d,%d:%d)", p->dir, c.c_flag, c.c_val);
+
+        out <<= 8;
+        out |= c.b_val;
+
+        cmpr_context_update_c(p, &c);
+        cmpr_context_store(p, &c);
+
+        (p->b_vertp)++;
+        (p->c_vertp)++;
+    }
+        raw = out;
+        //raw = cmpr_dec(r, enc);
+        cwritei(cout, raw);
+    }
+}
+
 
 inline void cmpr3_enc_push(cmpr3_ref ref, int raw);
 inline void cmpr3_enc_finish_line(cmpr3_ref ref);
