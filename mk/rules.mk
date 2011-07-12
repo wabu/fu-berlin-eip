@@ -2,7 +2,7 @@
 include $(ROOT)/mk/common.mk
 include $(ROOT)/mk/tar.mk
 
-CLEAN += $(BIN:=.clean) $(BIN:=.o.clean) $(LIB:=.a.clean) $(SHR:=.so.clean) $(SRC_C:=.o.clean) $(SRC_XC:=.o.clean)
+CLEAN += $(BIN:=.clean) $(BIN:=.o.clean) $(LIB:=.a.clean) $(SHR:=.so.clean) $(SRC:=.o.clean)
 
 BININSTALL += $(BIN:=.install)
 RESINSTALL += $(RES:=.install)
@@ -17,23 +17,23 @@ INCUNINSTALL += $(INC:=.h.uninstall)
 
 
 # compile c files
-$(SRC_C:=.o):	$(INC:=.h) $(HDR:=.h) $(SRC_C:=.c)
-	echo "CC $^"
-	$(CC) $(CFLAGS) -c $(@:.o=.c) -o $@
+%.o:	%.c  $(INC:=.h) $(HDR:=.h)
+	echo "CC $<"
+	$(CC) $(CFLAGS) -c $< -o $@
 
 # compile c files
-$(SRC_XC:=.o):	$(INC:=.h) $(HDR:=.h) $(SRC_XC:=.xc)
-	echo "XCC $^"
-	$(XCC) $(XCCFLAGS) -c $(@:.o=.xc) -o $@
+%.o:	%.xc $(INC:=.h) $(HDR:=.h)
+	echo "XCC $<"
+	$(XCC) $(XCCFLAGS) -c $< -o $@
 
 %.dvi: %.tex
-	echo "TX $^"
-	latex "$^"
+	echo "TX $<"
+	latex "$<"
 
 # link an executable
-$(BIN): $(INC:=.h) $(HDR:=.h) $(SRC_C:=.o) $(SRC_XC:=.o) $(BIN:=.o)
+$(BIN): $(SRC:=.o) $(BIN:=.o) $(USEFILE)
 	echo "LD $@"
-	$(LD) $@.o $(SRC_C:=.o) $(SRC_XC:=.o) $(LDFLAGS) -o $@
+	$(LD) $^ $(LDFLAGS) -o $@
 
 # not needed
 # create a shared lib
@@ -42,10 +42,10 @@ $(BIN): $(INC:=.h) $(HDR:=.h) $(SRC_C:=.o) $(SRC_XC:=.o) $(BIN:=.o)
 #	$(SO) $(SRC:=.o) -o $@
 
 # create a lib archive
-$(LIB:=.a): $(INC:=.h) $(HDR:=.h) $(SRC_C:=.o) $(SRC_XC:=.o) $(BIN:=.o) $(USEFILE)
+$(LIB:=.a): $(SRC:=.o) $(BIN:=.o) $(USEFILE)
 	echo "AR $@"
 	if test -n "$(USEFILE)"; then cp $(USEFILE) $@; fi
-	$(AR) $@ $(SRC_C:=.o) $(SRC_XC:=.o)
+	$(AR) $@ $^
 
 #cleanup
 $(CLEAN):
