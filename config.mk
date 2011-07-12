@@ -17,7 +17,7 @@ TARGET_BOARD = -target=XK-1
 # Flags
 CFLAGS += -Wall -g -O0 ${INCARGS}
 LDFLAGS += -g ${LIBARGS}
-XCCFLAGS = -O3 -Wall $(TARGET_BOARD)
+XCCFLAGS = -O3 -Wall $(TARGET_BOARD) ${INCARGS}
 
 # Compiler
 CC = cc -c

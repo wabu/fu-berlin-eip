@@ -18,17 +18,17 @@ INCUNINSTALL += $(INC:=.h.uninstall)
 
 # compile c files
 $(SRC_C:=.o):	$(INC:=.h) $(HDR:=.h) $(SRC_C:=.c)
-	echo "CC $<"
+	echo "CC $^"
 	$(CC) $(CFLAGS) -c $(@:.o=.c) -o $@
 
 # compile c files
 $(SRC_XC:=.o):	$(INC:=.h) $(HDR:=.h) $(SRC_XC:=.xc)
-	echo "XCC $<"
+	echo "XCC $^"
 	$(XCC) $(XCCFLAGS) -c $(@:.o=.xc) -o $@
 
 %.dvi: %.tex
-	echo "TX $<"
-	latex "$<"
+	echo "TX $^"
+	latex "$^"
 
 # link an executable
 $(BIN): $(INC:=.h) $(HDR:=.h) $(SRC_C:=.o) $(SRC_XC:=.o) $(BIN:=.o)
