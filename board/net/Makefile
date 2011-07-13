@@ -8,5 +8,3 @@ SRC = $(basename $(wildcard *.xc)) $(basename $(wildcard *.c))
 
 
 include ${ROOT}/mk/rules.mk
-
-include ${ROOT}/mk/tags.mk
