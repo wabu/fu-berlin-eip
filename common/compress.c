@@ -1,5 +1,6 @@
 #include <stdlib.h>
 
+#include "compat.h"
 #include "compress.h"
 #include "config.h"
 
@@ -14,15 +15,13 @@ typedef struct cmpr {
     int w,h;
 
     int dir;
+    int x;
 
-    unsigned char *b_vert;
     unsigned char b_hori;
+    signed   char c_hori;
 
-    signed char *c_vert;
-    signed char c_hori;
-
-    unsigned char *b_vertp;
-    signed char *c_vertp;
+    unsigned char b_vert[VID_WIDTH];
+    signed   char c_vert[VID_WIDTH];
 } cmpr;
 
 /** context for codec comptations */
@@ -30,12 +29,13 @@ typedef struct cmpr_context {
     int b_val, b_vert, b_hori;
     int c_vert, c_hori, c_flag, c_val;
     int d_val, d_vert, d_hori;
+    int dir;
 } cmpr_context;
 
 /**
  * frees resources allocated by p.
  * Note: p itself is not freed
- * \param p pointer to p struct
+ *
  */
 void cmpr_free(cmpr *p) {
     if (!p) return;
@@ -43,8 +43,8 @@ void cmpr_free(cmpr *p) {
     if (p->b_vert) free(p->b_vert);
     if (p->c_vert) free(p->c_vert);
 
-    p->b_vert = 0;
-    p->c_vert = 0;
+    //p->b_vert = 0;
+    //p->c_vert = 0;
 }
 
 /** 
@@ -57,8 +57,8 @@ cmpr *cmpr_init(cmpr *p, int w, int h) {
     if (!p) 
         return 0;
 
-    p->b_vert = (unsigned char*)malloc(sizeof(char) * w);
-    p->c_vert = (signed char*)malloc(sizeof(char) * w);
+    //p->b_vert = (unsigned char*)malloc(sizeof(char) * w);
+    //p->c_vert = (signed char*)malloc(sizeof(char) * w);
 
     if (!p->b_vert || !p->c_vert) {
         cmpr_free(p);
@@ -106,7 +106,7 @@ typedef struct cmpr3_context {
 /**
  * frees resources allocated by q.
  * Note: q itself is not freed
- * \param q pointer to p struct
+ *param q pointer to p struct
  */
 void cmpr3_free(cmpr3 *q) {
     if (!q) return;
@@ -152,22 +152,23 @@ cmpr3 *cmpr3_init(cmpr3* q, int w, int h, int sub, int sync) {
 
 
 static inline void cmpr_context_load(cmpr *p, cmpr_context *c, int pixel) {
-    c->b_vert = *(p->b_vertp);
+    c->dir = p->dir;
+    c->b_vert = p->b_vert[p->x];
     c->b_hori = p->b_hori;
 
-    c->c_vert = *(p->c_vertp);
+    c->c_vert = p->c_vert[p->x];
     c->c_hori = p->c_hori;
 
-    if (c->c_vert + c->b_vert <= 0)
+    if (c->c_vert +  c->b_vert <= 0)
         c->c_vert = -c->b_vert;
-    if (c->c_hori + c->b_hori <= 0)
+    if (c->c_hori +  c->b_hori <= 0)
         c->c_hori = -c->b_hori;
 
     c->d_hori = c->b_hori + c->c_hori - pixel;
     c->d_vert = c->b_vert + c->c_vert - pixel;
 }
 
-static inline void cmpr_context_update_c(cmpr *p, cmpr_context *ctx) {
+static inline void cmpr_context_update_c(cmpr_context *ctx) {
     int *c = &(ctx->c_val);
     if (ctx->c_flag) {
         (*c) = (*c) + (*c)/2;
@@ -178,13 +179,14 @@ static inline void cmpr_context_update_c(cmpr *p, cmpr_context *ctx) {
 }
 
 
-static inline void cmpr_context_select_dir(cmpr *p, cmpr_context *c) {
-    switch (p->dir) {
+static inline void cmpr_context_select_dir(cmpr_context *c) {
+    switch (c->dir) {
     case HORIZONTAL:
         c->d_val = c->d_hori;
         c->c_val = c->c_hori;
         c->b_val = c->b_hori + c->c_hori;
         break;
+
     case VERTICAL:
         c->d_val = c->d_vert;
         c->c_val = c->c_vert;
@@ -194,10 +196,11 @@ static inline void cmpr_context_select_dir(cmpr *p, cmpr_context *c) {
 }
 
 static inline void cmpr_context_store(cmpr *p, cmpr_context *c) {
-    *(p->b_vertp) = c->b_val;
+    p->b_vert[p->x] = c->b_val;
     p->b_hori = c->b_val;
-    *(p->c_vertp) = c->c_val;
+    p->c_vert[p->x] = c->c_val;
     p->c_hori = c->c_val;
+    p->dir = c->dir;
 }
 
 
@@ -240,9 +243,7 @@ void cmpr3_delete(cmpr3_ref ref) {
     ref.p = 0;
 }
 
-static inline void cmpr_start_frame(cmpr_ref ref) {
-    cmpr *p = (cmpr *)ref.p;
-
+void cmpr_start_frame(cmpr *const p) {
     p->dir = CMPR_HV_DEFAULT;
 
     for (int i=0; i<p->w; i++) {
@@ -250,86 +251,75 @@ static inline void cmpr_start_frame(cmpr_ref ref) {
         p->c_vert[i] = CMPR_C_DEFAULT;
     }
 }
-static inline void cmpr_start_line(cmpr_ref ref) {
-    cmpr *p = (cmpr *)ref.p;
-
+void cmpr_start_line(cmpr *const p) {
     p->b_hori = CMPR_B_DEFAULT;
     p->c_hori = CMPR_C_DEFAULT;
 
-    p->b_vertp = p->b_vert;
-    p->c_vertp = p->c_vert;
+    p->x = 0;
 }
 
-static inline char cmpr_enc(cmpr_ref ref, int raw) {
+static inline char cmpr_enc(cmpr *const p, int raw) {
     cmpr_context c;
     char out;
-
-    cmpr *p = (cmpr *)ref.p;
 
     for (int valid=32, pixel = (raw >> (valid-=8)) & 0xff;
              valid>=0; pixel = (raw >> (valid-=8)) & 0xff) {
 
         cmpr_context_load(p, &c, pixel);
 
-        if (p->dir == VERTICAL && abs(c.d_hori) < abs(c.d_vert)+CMPR_CHANGE_BIAS) {
-            p->dir = HORIZONTAL;
+        if (c.dir == VERTICAL && abs(c.d_hori) < abs(c.d_vert)+CMPR_CHANGE_BIAS) {
+            c.dir = HORIZONTAL;
         } else 
-        if (p->dir == HORIZONTAL && abs(c.d_vert) < abs(c.d_hori)+CMPR_CHANGE_BIAS) {
-            p->dir = VERTICAL;
+        if (c.dir == HORIZONTAL && abs(c.d_vert) < abs(c.d_hori)+CMPR_CHANGE_BIAS) {
+            c.dir = VERTICAL;
         }
         
-        cmpr_context_select_dir(p, &c);
+        cmpr_context_select_dir(&c);
 
-        c.c_flag = (c.d_val * (c.c_val) < 0);
+        c.c_flag = (c.d_val * c.c_val < 0);
 
-        cmpr_context_update_c(p, &c);
+        cmpr_context_update_c(&c);
 
         cmpr_context_store(p, &c);
 
         out <<= 2;
-        out |= (p->dir<<1) | c.c_flag;
+        out |= (c.dir<<1) | c.c_flag;
 
-        (p->b_vertp)++;
-        (p->c_vertp)++;
+        p->x++;
     }
     return out;
 }
 
-static inline int  cmpr_dec(cmpr_ref ref, char enc) {
+static inline int cmpr_dec(cmpr *const p, char enc) {
     int out = 0;
-    cmpr *p = (cmpr *)ref.p;
     cmpr_context c;
 
     for (int valid= 8, ch = (enc >> (valid-=2));
              valid>=0; ch = (enc >> (valid-=2))) {
         c.c_flag = ch & 0x1;
-        p->dir   = (ch>>1) & 0x1;
+        c.dir    = (ch>>1) & 0x1;
         
         cmpr_context_load(p, &c, 0);
-	cmpr_context_select_dir(p, &c);
+	cmpr_context_select_dir(&c);
 
-        //printf("(%d,%d:%d)", p->dir, c.c_flag, c.c_val);
+        //printf("(%d,%d:%d)", dir, c_flag, c_val);
 
         out <<= 8;
         out |= c.b_val;
 
-        cmpr_context_update_c(p, &c);
+        cmpr_context_update_c(&c);
         cmpr_context_store(p, &c);
 
-        (p->b_vertp)++;
-        (p->c_vertp)++;
+        p->x++;
     }
 
     return out;
 }
 
-#include "compat.h"
 void cmpr_encoder(streaming chanend cin, streaming chanend cout) {
-    cmpr_ref r = cmpr_create(VID_WIDTH, VID_HEIGHT);
-    cmpr_context c;
-    char out;
+    cmpr c;
+    cmpr *p = cmpr_init(&c, VID_WIDTH, VID_HEIGHT);
 
-    cmpr *p = (cmpr *)r.p;
     int raw;
     char enc;
 
@@ -339,44 +329,18 @@ void cmpr_encoder(streaming chanend cin, streaming chanend cout) {
             case VID_NEW_FRAME:
                 cwritec(cout, CMPR_ESCAPE);
                 cwritec(cout, CMPR_NEW_FRAME);
-                cmpr_start_frame(r);
+                cmpr_start_frame(p);
                 break;
             case VID_NEW_LINE:
                 cwritec(cout, CMPR_ESCAPE);
                 cwritec(cout, CMPR_NEW_LINE);
-                cmpr_start_line(r);
+                cmpr_start_line(p);
                 break;
             default:
-
-    for (int valid=32, pixel = (raw >> (valid-=8)) & 0xff;
-             valid>=0; pixel = (raw >> (valid-=8)) & 0xff) {
-
-        cmpr_context_load(p, &c, pixel);
-
-        if (p->dir == VERTICAL && abs(c.d_hori) < abs(c.d_vert)+CMPR_CHANGE_BIAS) {
-            p->dir = HORIZONTAL;
-        } else 
-        if (p->dir == HORIZONTAL && abs(c.d_vert) < abs(c.d_hori)+CMPR_CHANGE_BIAS) {
-            p->dir = VERTICAL;
-        }
-        
-        cmpr_context_select_dir(p, &c);
-
-        c.c_flag = (c.d_val * (c.c_val) < 0);
-
-        cmpr_context_update_c(p, &c);
-
-        cmpr_context_store(p, &c);
-
-        out <<= 2;
-        out |= (p->dir<<1) | c.c_flag;
-
-        (p->b_vertp)++;
-        (p->c_vertp)++;
-    }
-    //            enc = cmpr_enc(r, raw);
-    enc = out;
-                if (enc == CMPR_ESCAPE) cwritec(cout, CMPR_ESCAPE);
+                enc = cmpr_enc(p, raw);
+                if (enc == CMPR_ESCAPE) { 
+                    cwritec(cout, CMPR_ESCAPE);
+                }
                 cwritec(cout, enc);
                 break;
         }
@@ -384,12 +348,10 @@ void cmpr_encoder(streaming chanend cin, streaming chanend cout) {
 }
 
 void cmpr_decoder(streaming chanend cin, streaming chanend cout) {
-    cmpr_ref r = cmpr_create(VID_WIDTH, VID_HEIGHT);
+    cmpr c;
+    cmpr *p = cmpr_init(&c, VID_WIDTH, VID_HEIGHT);
     int raw;
     char enc;
-    int out = 0;
-    cmpr *p = (cmpr *)r.p;
-    cmpr_context c;
 
     for (;;) {
         enc = creadc(cin);
@@ -398,38 +360,16 @@ void cmpr_decoder(streaming chanend cin, streaming chanend cout) {
             switch (enc) {
             case CMPR_NEW_FRAME:
                 cwritei(cout, VID_NEW_FRAME);
-                cmpr_start_frame(r);
+                cmpr_start_frame(p);
                 continue;
             case CMPR_NEW_LINE:
                 cwritei(cout, VID_NEW_LINE);
-                cmpr_start_line(r);
+                cmpr_start_line(p);
                 continue;
-            default:
-                break;
             }
         }
 
-    for (int valid= 8, ch = (enc >> (valid-=2));
-             valid>=0; ch = (enc >> (valid-=2))) {
-        c.c_flag = ch & 0x1;
-        p->dir   = (ch>>1) & 0x1;
-        
-        cmpr_context_load(p, &c, 0);
-	cmpr_context_select_dir(p, &c);
-
-        //printf("(%d,%d:%d)", p->dir, c.c_flag, c.c_val);
-
-        out <<= 8;
-        out |= c.b_val;
-
-        cmpr_context_update_c(p, &c);
-        cmpr_context_store(p, &c);
-
-        (p->b_vertp)++;
-        (p->c_vertp)++;
-    }
-        raw = out;
-        //raw = cmpr_dec(r, enc);
+        raw = cmpr_dec(p, enc);
         cwritei(cout, raw);
     }
 }
