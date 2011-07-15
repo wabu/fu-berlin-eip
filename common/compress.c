@@ -1,6 +1,6 @@
 #include <stdlib.h>
 
-#include "compat.h"
+#include "channel.h"
 #include "compress.h"
 #include "config.h"
 
@@ -316,7 +316,7 @@ static inline int cmpr_dec(cmpr *const p, char enc) {
     return out;
 }
 
-void cmpr_encoder(streaming chanend cin, streaming chanend cout) {
+void cmpr_encoder(chanend cin, chanend cout) {
     cmpr c;
     cmpr *p = cmpr_init(&c, VID_WIDTH, VID_HEIGHT);
 
@@ -324,53 +324,53 @@ void cmpr_encoder(streaming chanend cin, streaming chanend cout) {
     char enc;
 
     for (;;) {
-        raw = creadi(cin);
+        raw = chan_readi(cin);
         switch (raw) {
             case VID_NEW_FRAME:
-                cwritec(cout, CMPR_ESCAPE);
-                cwritec(cout, CMPR_NEW_FRAME);
+                chan_writec(cout, CMPR_ESCAPE);
+                chan_writec(cout, CMPR_NEW_FRAME);
                 cmpr_start_frame(p);
                 break;
             case VID_NEW_LINE:
-                cwritec(cout, CMPR_ESCAPE);
-                cwritec(cout, CMPR_NEW_LINE);
+                chan_writec(cout, CMPR_ESCAPE);
+                chan_writec(cout, CMPR_NEW_LINE);
                 cmpr_start_line(p);
                 break;
             default:
                 enc = cmpr_enc(p, raw);
                 if (enc == CMPR_ESCAPE) { 
-                    cwritec(cout, CMPR_ESCAPE);
+                    chan_writec(cout, CMPR_ESCAPE);
                 }
-                cwritec(cout, enc);
+                chan_writec(cout, enc);
                 break;
         }
     }
 }
 
-void cmpr_decoder(streaming chanend cin, streaming chanend cout) {
+void cmpr_decoder(chanend cin, chanend cout) {
     cmpr c;
     cmpr *p = cmpr_init(&c, VID_WIDTH, VID_HEIGHT);
     int raw;
     char enc;
 
     for (;;) {
-        enc = creadc(cin);
+        enc = chan_readc(cin);
         if (enc == CMPR_ESCAPE) {
-            enc = creadc(cin);
+            enc = chan_readc(cin);
             switch (enc) {
             case CMPR_NEW_FRAME:
-                cwritei(cout, VID_NEW_FRAME);
+                chan_writei(cout, VID_NEW_FRAME);
                 cmpr_start_frame(p);
                 continue;
             case CMPR_NEW_LINE:
-                cwritei(cout, VID_NEW_LINE);
+                chan_writei(cout, VID_NEW_LINE);
                 cmpr_start_line(p);
                 continue;
             }
         }
 
         raw = cmpr_dec(p, enc);
-        cwritei(cout, raw);
+        chan_writei(cout, raw);
     }
 }
 
