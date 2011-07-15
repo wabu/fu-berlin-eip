@@ -1,6 +1,6 @@
 RM = rm
 TARGET_BOARD = -target=XK-1
-XCCFLAGS = -O3 -Wall $(TARGET_BOARD)
+XCCFLAGS = -O3 -Wall -Winline $(TARGET_BOARD)
 XCC = xcc
 XC_SRCS = $(wildcard *.xc)
 C_SRCS = ../common/compress.c

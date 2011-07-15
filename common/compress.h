@@ -2,36 +2,6 @@ typedef struct cmpr_ref {
     int p;
 } cmpr_ref;
 
-/**
- * creates an cmpr encoder object
- * @param w width of frames
- * @param h height of frames
- * @return  encoder object reference
- */
-cmpr_ref cmpr_create(int w, int h);
-void cmpr_delete(cmpr_ref ref);
-
-// TODO: check signed/unsigned for chars
-// TODO: check where we really want to use chars and where ints are better
-
-inline void cmpr_start_frame(cmpr_ref ref);
-inline void cmpr_start_line(cmpr_ref ref);
-/**
- * encode an int (4 pixels) raw data into a byte encoded data (4 c,h pairs)
- * @param ref   referenc to the encoder object
- * @param raw   pixel data   (0x<hue><hue><hue><hue>)
- * @return      encoded data (0b<c><h><c><h><c><h><c><h>)
- */
-inline char cmpr_enc(cmpr_ref ref, int raw);
-
-/**
- * dencode a byte of encoded data (4 c,h pairs) into an int (4 pixels) raw data
- * @param ref   referenc to the encoder object
- * @param enc   encoded data (0b<h><c><h><c><h><c><h><c>)
- * @return      pixel data   (0x<hue><hue><hue><hue>)
- */
-inline int  cmpr_dec(cmpr_ref ref, char enc);
-
 typedef struct cmpr3_ref {
     int p;
 } cmpr3_ref;
@@ -79,5 +49,8 @@ inline int cmpr3_enc_pull(cmpr3_ref ref, char *enc);
  * @param ref   referenc to the encoder object
  */
 inline void cmpr3_enc_finish_fame(cmpr3_ref ref);
+
+void cmpr_encoder(streaming chanend cin, streaming chanend cout);
+void cmpr_decoder(streaming chanend cin, streaming chanend cout);
 
 

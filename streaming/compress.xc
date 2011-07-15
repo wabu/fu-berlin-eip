@@ -183,48 +183,4 @@ inline char calc_dir(char old, char flag) {
      \
     x++
 
-void cmpr_encode(streaming chanend c_in, streaming chanend c_out) {
-    cmpr_ref r = cmpr_create(VID_WIDTH, VID_HEIGHT);
 
-    int raw;
-    vid_init(c_in);
-    enc_init(c_out);
-
-    vid_with_frames(c_in) {
-        cmpr_start_frame(r);
-        enc_escape(c_out, EncNewFrame);
-
-        vid_with_lines(c_in) {
-            int i = 0;
-            cmpr_start_line(r);
-            enc_escape(c_out, EncStartOfLine);
-
-            vid_with_ints(raw, c_in) {
-                char enc = cmpr_enc(r, raw);
-                enc_put(c_out, enc);
-            }
-        }
-    }
-}
-
-void cmpr_decode(streaming chanend c_in, streaming chanend c_out) {
-    cmpr_ref r = cmpr_create(VID_WIDTH, VID_HEIGHT);
-
-    int bits;
-    dec_init(c_in);
-
-    dec_with_frames(c_in) {
-        cmpr_start_frame(r);
-        vid_start_frame(c_out);
-
-        dec_with_lines(c_in) {
-            cmpr_start_line(r);
-            vid_start_line(c_out); 
-
-            dec_with_bytes(bits, c_in) {
-                int raw = cmpr_dec(r, bits);
-                vid_put_raw(c_out, raw);
-            }
-        }
-    }
-}
