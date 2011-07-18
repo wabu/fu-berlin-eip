@@ -227,7 +227,7 @@ static inline void cmpr3_subsample_line(cmpr3 *p, int sy) {
         p->b_prev[sy][sx] = p->b_sampling_sum[sx] / ss;
         p->c_prev[sy][sx] = p->c_sampling_max[sx];
 
-        printf("|%d,%d: b=%x, c=%d\n", sy, sx, p->b_prev[sy][sx], p->c_prev[sy][sx]);
+        //printf("|%d,%d: b=%x, c=%d\n", sy, sx, p->b_prev[sy][sx], p->c_prev[sy][sx]);
 
         p->b_sampling_sum[sx] = 0;
         p->c_sampling_max[sx] = 0;
@@ -297,7 +297,7 @@ static inline void cmpr3_enc_pixel(cmpr3 *p, int pixel, char *c_flag, signed cha
     int cur;
 
     cmpr3_context_load(p, &x, pixel);
-    printf("%d, p=%d, h=%d, v=%d\n", p->dir, x.d_prev, x.d_hori, x.d_vert);
+    //printf("%d, p=%d, h=%d, v=%d\n", p->dir, x.d_prev, x.d_hori, x.d_vert);
 
     switch (dir) {
     case PREVIOUS:
@@ -334,10 +334,23 @@ static inline void cmpr3_enc_pixel(cmpr3 *p, int pixel, char *c_flag, signed cha
         }
         break;
     }
+    if(x.dir != dir) {
+            switch (dir) {
+            case HORIZONTAL:
+                printf("->h[%d,%d]", p->y, p->x);
+                break;
+            case VERTICAL:
+                printf("->v[%d,%d]", p->y, p->x);
+                break;
+            case PREVIOUS:
+                printf("->p[%d,%d]", p->y, p->x);
+                break;
+            }
+    }
     *dir_flag = cmpr3_encode_dir(x.dir, dir);
     cmpr3_context_select_dir(&x, dir);
 
-    printf("d=%d, c=%d\n", x.d_val, x.c_val);
+    //printf("d=%d, c=%d\n", x.d_val, x.c_val);
     cmpr3_context_update_c(&x, (x.d_val * x.c_val < 0));
 
     cmpr3_context_store(p, &x);
@@ -392,7 +405,7 @@ void cmpr_start_line(cmpr *p) {
 }
 
 void cmpr3_start_frame(cmpr3 *p, int sync) {
-    printf("start frame %d\n", sync);
+    //printf("start frame %d\n", sync);
     cmpr_start_frame((cmpr*)p);
 
     p->sync = sync;
@@ -451,13 +464,14 @@ int cmpr3_enc_push(cmpr3 *p, int raw) {
         p->sx = p->x / p->sub;
 
         cmpr3_enc_pixel(p, pixel, &c_flag, &dir_flag);
-        printf("(%d,%d)\n", c_flag, dir_flag);
+        //printf("(%d,%d)\n", c_flag, dir_flag);
 
         c_bits<<= 1;
         c_bits |= c_flag;
 
         // rle...
         if (dir_flag >= 0) {
+            printf("[%d:%d[%d]]", p->dir_cnt, dir_flag, p->dir_index);
             p->enc_buff_dir[p->dir_index++] = (p->dir_cnt << 1) | dir_flag; 
             p->dir_cnt = 1;
         } else { 
@@ -495,7 +509,7 @@ const char *cmpr3_enc_get_dirs(cmpr3 *p, int *n) {
 
 int cmpr3_dec_push_cs(cmpr3 *p, char raw) {
     p->enc_buff_c[p->c_index++] = raw;
-    printf("pushed cs %x (%d)\n", raw, p->c_index);
+    //printf("pushed cs %x (%d)\n", raw, p->c_index);
 
     if (p->c_index >= p->w/8) { // received all c flags
         p->c_index = 0;
@@ -506,8 +520,8 @@ int cmpr3_dec_push_cs(cmpr3 *p, char raw) {
 
 int cmpr3_dec_push_dir(cmpr3 *p, char raw) {
     p->enc_buff_dir[p->dir_index++] = raw;
-    printf("pushed dirs %x (%d)\n", raw, p->dir_index);
-    p->dir_cnt += raw << 1;
+    //printf("pushed dirs %x (%d)\n", raw, p->dir_index);
+    p->dir_cnt += raw >> 1;
 
     // XXX refactor dir_update out into own function
     if (p->dir_cnt >= p->w) { // received all dir changes
@@ -542,18 +556,16 @@ int cmpr3_dec_pull(cmpr3 *p) {
             p->dir_next = p->dir_cnt==0xff ? p->dir : cmpr3_decode_dir(p->dir, p->dir_cnt & 0x1);
             p->dir_cnt >>= 1;
             switch (p->dir) {
-#undef printf
             case HORIZONTAL:
-                printf("->h");
+                printf("<-h[%d,%d]", p->y, p->x);
                 break;
             case VERTICAL:
-                printf("->v");
+                printf("<-v[%d,%d]", p->y, p->x);
                 break;
             case PREVIOUS:
-                printf("->p");
+                printf("<-p[%d,%d]", p->y, p->x);
                 break;
             }
-#define printf(...)
         }
 
         raw <<= 8;

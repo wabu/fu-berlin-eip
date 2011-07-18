@@ -79,33 +79,35 @@ void cmpr3_encoder(chanend cin, chanend cout, int w, int h) {
     for (;;) {
         raw = chan_readi(cin);
         switch (raw) {
-            case VID_NEW_FRAME:
-                sync = (cnt++%300==0);
-                chan_writec(cout, sync ? CMPR_FRAME_SYNC : CMPR_NEW_FRAME);
+        case VID_NEW_FRAME:
+            sync = (cnt++%300==0);
+            chan_writec(cout, sync ? CMPR_FRAME_SYNC : CMPR_NEW_FRAME);
 
-                cmpr3_start_frame(p, sync);
-                break;
+            cmpr3_start_frame(p, sync);
+            break;
 
-            case VID_NEW_LINE:
+        case VID_NEW_LINE:
 
-                chan_writec(cout, CMPR_NEW_LINE);
-                cmpr3_start_line(p);
-                break;
+            chan_writec(cout, CMPR_NEW_LINE);
+            cmpr3_start_line(p);
+            break;
 
-            default:
-                if (!cmpr3_enc_push(p, raw)) {
-                    int n;
-                    const char *buf;
+        default:
+            if (!cmpr3_enc_push(p, raw)) {
+                int n;
+                const char *buf;
 
-                    buf = cmpr3_enc_get_cs(p, &n);
-                    for (int i=0; i<n; i++) {
-                        chan_writec(cout, buf[i]);
-                    }
-                    buf = cmpr3_enc_get_dirs(p, &n);
-                    for (int i=0; i<n; i++) {
-                        chan_writec(cout, buf[i]);
-                    }
+                buf = cmpr3_enc_get_cs(p, &n);
+                for (int i=0; i<n; i++) {
+                    chan_writec(cout, buf[i]);
                 }
+                buf = cmpr3_enc_get_dirs(p, &n);
+                for (int i=0; i<n; i++) {
+                    //printf(">>%d:%d", buf[i]>>1, buf[i]&0x1);
+                    chan_writec(cout, buf[i]);
+                }
+            }
+            break;
         }
     }
 }
@@ -146,6 +148,9 @@ void cmpr3_decoder(chanend cin, chanend cout, int w, int h) {
                 chan_writei(cout, raw);
             }
             break;
+
+        default:
+            printf("\n!! %x\n", enc);
         }
     }
 }
