@@ -2,5 +2,5 @@ ROOT = .
 SELF = .
 NAME = eip
 
-SUBS = board
+SUBS = board codec
 include ${ROOT}/mk/dir.mk

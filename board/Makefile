@@ -2,5 +2,5 @@ ROOT = ..
 SELF = board
 NAME = board
 
-SUBS = common cam 
+SUBS = common cam compat
 include ${ROOT}/mk/dir.mk

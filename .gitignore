@@ -3,6 +3,7 @@
 *.swp
 *.swo
 *.swn
+*.a
 cscope.out
 .project
 .metadata/

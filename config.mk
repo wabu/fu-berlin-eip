@@ -15,7 +15,7 @@ LIBARGS += -L/usr/lib -L/usr/local/lib -lc -lGL -lGLU -lglut -lX11 -lm
 
 TARGET_BOARD = -target=XK-1
 # Flags
-CFLAGS += -Wall $(TARGET_BOARD) -g -O0 ${INCARGS}
+CFLAGS += -fms-extensions -Wall $(TARGET_BOARD) -g -O0 ${INCARGS}
 LDFLAGS += -g ${LIBARGS}
 XCCFLAGS = -O3 -Wall $(TARGET_BOARD) ${INCARGS}
 
