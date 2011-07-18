@@ -7,6 +7,7 @@
 #define CMPR_ESCAPE     0xFF
 #define CMPR_NEW_LINE   0xFE
 #define CMPR_NEW_FRAME  0xFD
+#define CMPR_FRAME_SYNC 0xFF
 
 #define chan_init(name, type, chan) \
     type __##name##_##chan##_type = 0; \

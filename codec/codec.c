@@ -1,3 +1,4 @@
+#define printf(...)
 /**
  * @file codec.c
  * This file contains an implementation of an compression/codec algorithm.
@@ -31,9 +32,17 @@
 #include "config.h"
 #include "codec.h"
 
+#include <stdio.h>
+
 
 static inline int abs(int i) {
     return i>0 ? i : -i;
+}
+static inline int max(int a, int b) {
+    return a>b ? a : b;
+}
+static inline int maxabs(int a, int b) {
+    return abs(a) > abs(b) ? a : b;
 }
 
 /** holds context for comptation of one pixel shared by the subtasks*/
@@ -85,13 +94,16 @@ static inline void cmpr_context_load(cmpr *p, cmpr_context *x, int pixel) {
 static inline void cmpr3_context_load(cmpr3 *p, cmpr3_context *x, int pixel) {
     cmpr_context_load((cmpr*)p, (cmpr_context*)x, pixel);
 
-    if (p->sync_cnt == 0) {
+    if (p->sync) {
         x->b_prev = CMPR_B_DEFAULT;
         x->c_prev = CMPR_C_DEFAULT;
     } else {
         x->b_prev = p->b_prev[p->sy][p->sx];
         x->c_prev = p->c_prev[p->sy][p->sx];
     }
+
+    if (x->c_prev +  x->b_prev <= 0)
+        x->c_prev = -x->b_prev;
 
     x->d_prev = x->b_prev + x->c_prev - pixel;
 }
@@ -168,7 +180,7 @@ static inline void cmpr3_context_select_dir(cmpr3_context *x, int dir) {
  * @see cmpr3_decode_dir
  */
 static inline signed char cmpr3_encode_dir(int from, int to) {
-    return from == to ? -1 : from != PREVIOUS ? to == PREVIOUS : to == VERTICAL;
+    return from == to ? -1 : (from != PREVIOUS ? to == PREVIOUS : to == VERTICAL);
 }
 
 /**
@@ -197,9 +209,8 @@ static inline void cmpr_context_store(cmpr *p, cmpr_context *x) {
 static inline void cmpr3_context_store(cmpr3 *p, cmpr3_context *x) {
     cmpr_context_store((cmpr*)p, (cmpr_context*)x);
 
-    p->b_sampling_sum[p->sy] += x->b_val;
-    // TODO: use maximum for sampling c?
-    p->c_sampling_sum[p->sy] += x->c_val;
+    p->b_sampling_sum[p->sx] += x->b_val;
+    p->c_sampling_max[p->sx] = maxabs(p->c_sampling_max[p->sx], x->c_val);
 }
 
 /**
@@ -214,10 +225,12 @@ static inline void cmpr3_subsample_line(cmpr3 *p, int sy) {
 
     for (int sx=0; sx < sw; sx++) {
         p->b_prev[sy][sx] = p->b_sampling_sum[sx] / ss;
-        p->c_prev[sy][sx] = p->c_sampling_sum[sx] / ss;
+        p->c_prev[sy][sx] = p->c_sampling_max[sx];
+
+        printf("|%d,%d: b=%x, c=%d\n", sy, sx, p->b_prev[sy][sx], p->c_prev[sy][sx]);
 
         p->b_sampling_sum[sx] = 0;
-        p->c_sampling_sum[sx] = 0;
+        p->c_sampling_max[sx] = 0;
     }
 }
 
@@ -284,6 +297,7 @@ static inline void cmpr3_enc_pixel(cmpr3 *p, int pixel, char *c_flag, signed cha
     int cur;
 
     cmpr3_context_load(p, &x, pixel);
+    printf("%d, p=%d, h=%d, v=%d\n", p->dir, x.d_prev, x.d_hori, x.d_vert);
 
     switch (dir) {
     case PREVIOUS:
@@ -321,8 +335,9 @@ static inline void cmpr3_enc_pixel(cmpr3 *p, int pixel, char *c_flag, signed cha
         break;
     }
     *dir_flag = cmpr3_encode_dir(x.dir, dir);
-
     cmpr3_context_select_dir(&x, dir);
+
+    printf("d=%d, c=%d\n", x.d_val, x.c_val);
     cmpr3_context_update_c(&x, (x.d_val * x.c_val < 0));
 
     cmpr3_context_store(p, &x);
@@ -338,7 +353,6 @@ static inline void cmpr3_enc_pixel(cmpr3 *p, int pixel, char *c_flag, signed cha
  */
 static inline int cmpr3_dec_pixel(cmpr3 *p, int dir, int c) {
     cmpr3_context x;
-    dir = cmpr3_decode_dir(p->dir, dir);
 
     cmpr3_context_load(p, &x, 0);
     cmpr3_context_select_dir(&x, dir);
@@ -356,12 +370,10 @@ void cmpr_init(cmpr *p, int w, int h) {
     p->h = h;
 }
 
-void cmpr3_init(cmpr3* p, int w, int h, int sub, int sync) {
+void cmpr3_init(cmpr3* p, int w, int h, int sub) {
     cmpr_init((cmpr*)p, w, h);
 
     p->sub = sub;
-    p->sync_val = sync;
-    p->sync_cnt = -1;
 }
 void cmpr_start_frame(cmpr *p) {
     p->dir = CMPR_HV_DEFAULT;
@@ -379,20 +391,19 @@ void cmpr_start_line(cmpr *p) {
     p->x = 0;
 }
 
-void cmpr3_start_frame(cmpr3 *p) {
+void cmpr3_start_frame(cmpr3 *p, int sync) {
+    printf("start frame %d\n", sync);
     cmpr_start_frame((cmpr*)p);
 
-    if(++(p->sync_cnt) == p->sync_val) {
-        p->sync_cnt = 0;
-    }
-
-    p->dir = (p->sync_cnt==0) ? CMPR_HV_DEFAULT : CMPR_HVP_DEFAULT;
+    p->sync = sync;
+    p->dir = sync ? CMPR_HV_DEFAULT : CMPR_HVP_DEFAULT;
     p->y = p->sy = 0;
 }
 
 void cmpr3_start_line(cmpr3 *p) {
     cmpr_start_line((cmpr*)p);
 
+    p->c_index = 0;
     p->dir_index = 0;
     p->dir_cnt = 0;
     p->dir_next = p->dir;
@@ -431,14 +442,16 @@ int cmpr_dec(cmpr *p, char enc) {
     return out;
 }
 
-void cmpr3_enc_push(cmpr3 *p, int raw) {
-    char c_flag, c_bits; 
+int cmpr3_enc_push(cmpr3 *p, int raw) {
+    char c_flag, c_bits=0; 
     signed char dir_flag;
 
     for (int valid=32, pixel = (raw >> (valid-=8)) & 0xff;
              valid >=0; pixel = (raw >> (valid-=8)) & 0xff) {
+        p->sx = p->x / p->sub;
 
         cmpr3_enc_pixel(p, pixel, &c_flag, &dir_flag);
+        printf("(%d,%d)\n", c_flag, dir_flag);
 
         c_bits<<= 1;
         c_bits |= c_flag;
@@ -457,11 +470,13 @@ void cmpr3_enc_push(cmpr3 *p, int raw) {
 
         p->x++;
     }
-    if (p->x%8) {
-        p->enc_buff_c[p->c_index++] |= c_flag;
+    if (p->x%8 == 0) {
+        p->enc_buff_c[p->c_index++] |= c_bits;
     } else {
-        p->enc_buff_c[p->c_index] = c_flag<<4;
+        p->enc_buff_c[p->c_index] = c_bits<<4;
     }
+
+    return (p->x < p->w);
 }
 
 const char *cmpr3_enc_get_cs(cmpr3 *p, int *n) {
@@ -479,7 +494,8 @@ const char *cmpr3_enc_get_dirs(cmpr3 *p, int *n) {
 
 
 int cmpr3_dec_push_cs(cmpr3 *p, char raw) {
-    p->enc_buff_c[p->c_index] = raw;
+    p->enc_buff_c[p->c_index++] = raw;
+    printf("pushed cs %x (%d)\n", raw, p->c_index);
 
     if (p->c_index >= p->w/8) { // received all c flags
         p->c_index = 0;
@@ -490,10 +506,11 @@ int cmpr3_dec_push_cs(cmpr3 *p, char raw) {
 
 int cmpr3_dec_push_dir(cmpr3 *p, char raw) {
     p->enc_buff_dir[p->dir_index++] = raw;
+    printf("pushed dirs %x (%d)\n", raw, p->dir_index);
     p->dir_cnt += raw << 1;
 
     // XXX refactor dir_update out into own function
-    if (p->dir_cnt == p->w) { // received all dir changes
+    if (p->dir_cnt >= p->w) { // received all dir changes
         p->dir_index = 0;
         p->dir_cnt = p->enc_buff_dir[p->dir_index++];
         p->dir_next = p->dir_cnt==0xff ? p->dir : cmpr3_decode_dir(p->dir, p->dir_cnt & 0x1);
@@ -513,8 +530,9 @@ int cmpr3_dec_pull(cmpr3 *p) {
         c_bits = p->enc_buff_c[p->c_index++] & 0xf;
     }
         
-    for (int valid= 4, c_flag = (c_bits >> (--valid));
-             valid>=0; c_flag = (c_bits >> (--valid))) {
+    for (int valid= 4, c_flag = (c_bits >> (--valid))&0x1;
+             valid>=0; c_flag = (c_bits >> (--valid))&0x1) {
+        p->sx = p->x / p->sub;
 
         // XXX refactor dir_update out into own function
         if (p->dir_cnt == 0) {
@@ -523,10 +541,23 @@ int cmpr3_dec_pull(cmpr3 *p) {
             p->dir_cnt = p->enc_buff_dir[p->dir_index++];
             p->dir_next = p->dir_cnt==0xff ? p->dir : cmpr3_decode_dir(p->dir, p->dir_cnt & 0x1);
             p->dir_cnt >>= 1;
+            switch (p->dir) {
+#undef printf
+            case HORIZONTAL:
+                printf("->h");
+                break;
+            case VERTICAL:
+                printf("->v");
+                break;
+            case PREVIOUS:
+                printf("->p");
+                break;
+            }
+#define printf(...)
         }
 
         raw <<= 8;
-        raw |= cmpr3_dec_pixel(p, c_flag, p->dir);
+        raw |= cmpr3_dec_pixel(p, p->dir, c_flag);
 
         p->dir_cnt--;
         p->x++;

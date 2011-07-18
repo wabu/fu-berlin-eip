@@ -27,13 +27,13 @@ typedef struct cmpr {
 typedef struct cmpr3 {
     struct cmpr;
 
-    int sync_cnt, sync_val;     /** syncronistation counter and value */
+    int sync; /**< current frame is sync frame */
 
     int sub; /**< subsampling size */
     int y, sx, sy; /**< subsample coordinates */
 
     unsigned char b_sampling_sum[SUB_WIDTH]; /**< subsample buffer sums up the b values of #sub lines */
-    signed char c_sampling_sum[SUB_HEIGHT];  /**< subsample buffer sums up the c values of #sub lines */
+    signed char c_sampling_max[SUB_HEIGHT];  /**< subsample buffer sums up the c values of #sub lines */
 
     // { rle sutff
     int c_index, dir_index, dir_cnt, dir_next;
@@ -60,16 +60,15 @@ void cmpr_init(cmpr *p, int w, int h);
  * @param w     picture width
  * @param h     picture height
  * @param sub   subsample size for reference picture
- * @param sync  syncronisation frame interval
  */
-void cmpr3_init(cmpr3* p, int w, int h, int sub, int sync);
+void cmpr3_init(cmpr3* p, int w, int h, int sub);
 
 extern inline void cmpr_start_frame(cmpr *p);
 extern inline void cmpr_start_line(cmpr *p);
 extern inline char cmpr_enc(cmpr *p, int raw);
 extern inline int cmpr_dec(cmpr *p, char enc);
 
-extern inline void cmpr3_start_frame(cmpr3 *p);
+extern inline void cmpr3_start_frame(cmpr3 *p, int sync);
 extern inline void cmpr3_start_line(cmpr3 *p);
 
 /**
@@ -77,8 +76,9 @@ extern inline void cmpr3_start_line(cmpr3 *p);
  * @param p     pointer to cmpr struct
  * @param raw   4 pixel of picture data
  * @see cmpr3_get_enc_buffer
+ * @return      0, when a line is finished, 1 otherwise
  */
-extern inline void cmpr3_enc_push(cmpr3 *p, int raw);
+extern inline int cmpr3_enc_push(cmpr3 *p, int raw);
 
 /**
  * returns the buffer of encoded c data

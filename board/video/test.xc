@@ -76,8 +76,10 @@ int tst_setup(int w, int h) {
 }
 
 void tst_run_debug_video(streaming chanend c_in) {
+    int cnt = 0;
     while (1) {
-        update_frame();
+        if (cnt++%4 == 0)
+            update_frame();
 
         c_in <: VID_NEW_FRAME;
         for (int y=0; y<height; y++) {
