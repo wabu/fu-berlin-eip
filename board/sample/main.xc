@@ -10,7 +10,7 @@
 #include "cam.h"
 #include "udp.h"
 #include "conf.h"
-#include "image_processing.h"
+#include "averaging.h"
 
 mii_interface_t mii = {
 		XS1_CLKBLK_1,
@@ -54,7 +54,7 @@ int main()
 	// kein Flip, 4x4 Subsampling
 	cam_WriteRegValue(0x01, 0x01);
 	// IntegrationTime HIGH
-	cam_WriteRegValue(0x73, 0x00);
+	cam_WriteRegValue(0x73, 0x0D);
 	// IntegrationTime MIDDLE
 	cam_WriteRegValue(0x74, 0x40);
 	// IntegrationTime LOW
@@ -64,7 +64,8 @@ int main()
 	{
 		ethernet_server(mii, portClk, mac_address, rx, 1, tx, 1, null,null);
 		udpTransmitter(tx[0], rx[0], udpData1, udpData3);
-		imgproc_FirstStep(camData, resData1, udpData1);
+		averaging_FirstStep(camData, resData1);
+		averaging_SecondStep(resData1, udpData1);
 		cam_DataCapture(camData);
 		while(1);
 
