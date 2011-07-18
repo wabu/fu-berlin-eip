@@ -2,11 +2,9 @@ ROOT = ..
 SELF = codec
 NAME = codec
 
-USE = board/compat
-
 LIB = libcmpr
-INC = config codec
+HDR = config codec
+INC =
 SRC = codec
 
-include ${ROOT}/mk/use.mk
 include ${ROOT}/mk/rules.mk

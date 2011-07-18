@@ -34,12 +34,4 @@ enum CmprHVP {
 #define CMPR_C_BIT_MASK      0x01
 #define CMPR_D_BIT_MASK      0x02
 
-enum EncSpecialChar {
-    /* markups */
-    NewBits=0x0,
-    EncEscape=0xff,
-    EncStartOfLine=0xfe,
-    EncNewFrame=0xfd,
-};
-
 

@@ -33,7 +33,7 @@ INCUNINSTALL += $(INC:=.h.uninstall)
 # link an executable
 $(BIN): $(SRC:=.o) $(BIN:=.o)
 	echo "LD $@"
-	$(LD) $^ $(LDFLAGS) -o $@
+	$(LD) $^ $(LDFLAGS) -o $@.xe
 
 # not needed
 # create a shared lib
@@ -44,7 +44,7 @@ $(BIN): $(SRC:=.o) $(BIN:=.o)
 # create a lib archive
 $(LIB:=.a): $(SRC:=.o) $(BIN:=.o)
 	echo "AR $@"
-	$(AR) $@ $^
+	$(AR) $@ $(SRC:=.o) $(BIN:=.o)
 
 #cleanup
 $(CLEAN):

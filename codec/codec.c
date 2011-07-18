@@ -72,8 +72,8 @@ static inline void cmpr_context_load(cmpr *p, cmpr_context *x, int pixel) {
     if (x->c_hori +  x->b_hori <= 0)
         x->c_hori = -x->b_hori;
 
-    x->d_hori = abs( x->b_hori + x->c_hori - pixel );
-    x->d_vert = abs( x->b_vert + x->c_vert - pixel );
+    x->d_hori = x->b_hori + x->c_hori - pixel;
+    x->d_vert = x->b_vert + x->c_vert - pixel;
 }
 
 /**
@@ -93,7 +93,7 @@ static inline void cmpr3_context_load(cmpr3 *p, cmpr3_context *x, int pixel) {
         x->c_prev = p->c_prev[p->sy][p->sx];
     }
 
-    x->d_prev = abs( x->b_prev + x->c_prev - pixel );
+    x->d_prev = x->b_prev + x->c_prev - pixel;
 }
 
 /** 
@@ -234,12 +234,14 @@ static inline char cmpr_enc_pixel(cmpr *p, int pixel) {
 
     switch (dir) {
     case VERTICAL:
-        if (x.d_hori < x.d_vert+CMPR_CHANGE_BIAS)
+        if (abs(x.d_hori) < abs(x.d_vert)-CMPR_CHANGE_BIAS) {
             dir = HORIZONTAL;
+        }
         break;
     case HORIZONTAL:
-        if (x.d_vert < x.d_hori+CMPR_CHANGE_BIAS)
+        if (abs(x.d_vert) < abs(x.d_hori)-CMPR_CHANGE_BIAS) {
             dir = VERTICAL;
+        }
         break;
     }
 
@@ -248,7 +250,7 @@ static inline char cmpr_enc_pixel(cmpr *p, int pixel) {
 
     cmpr_context_store(p, &x);
 
-    return (x.dir<<1) | x.c_flag;
+    return (x.dir<<1) | (x.c_flag<<0);
 }
 
 /**
@@ -285,35 +287,35 @@ static inline void cmpr3_enc_pixel(cmpr3 *p, int pixel, char *c_flag, signed cha
 
     switch (dir) {
     case PREVIOUS:
-        cur = x.d_prev + CMPR_CHANGE_BIAS;
-        if (x.d_hori < cur) {
-            cur = x.d_hori;
+        cur = abs(x.d_prev) - CMPR_CHANGE_BIAS;
+        if (abs(x.d_hori) < cur) {
+            cur = abs(x.d_hori);
             dir = HORIZONTAL;
         }
-        if (x.d_vert < cur) {
-            cur = x.d_vert;
+        if (abs(x.d_vert) < cur) {
+            cur = abs(x.d_vert);
             dir = VERTICAL;
         }
         break;
     case HORIZONTAL:
-        cur = x.d_hori + CMPR_CHANGE_BIAS;
-        if (x.d_prev < cur) {
-            cur = x.d_prev;
+        cur = abs(x.d_hori) - CMPR_CHANGE_BIAS;
+        if (abs(x.d_prev) < cur) {
+            cur = abs(x.d_prev);
             dir = PREVIOUS;
         }
-        if (x.d_vert < cur) {
-            cur = x.d_vert;
+        if (abs(x.d_vert) < cur) {
+            cur = abs(x.d_vert);
             dir = VERTICAL;
         }
         break;
     case VERTICAL:
-        cur = x.d_vert + CMPR_CHANGE_BIAS;
-        if (x.d_prev < cur) {
-            cur = x.d_prev;
+        cur = abs(x.d_vert) - CMPR_CHANGE_BIAS;
+        if (abs(x.d_prev) < cur) {
+            cur = abs(x.d_prev);
             dir = PREVIOUS;
         }
-        if (x.d_hori < cur) {
-            cur = x.d_hori;
+        if (abs(x.d_hori) < cur) {
+            cur = abs(x.d_hori);
             dir = HORIZONTAL;
         }
         break;
@@ -421,7 +423,7 @@ int cmpr_dec(cmpr *p, char enc) {
     for (int valid= 8, ch = (enc >> (valid-=2));
              valid>=0; ch = (enc >> (valid-=2))) {
         out <<= 8;
-        out |= cmpr_dec_pixel(p, (ch>>1)&CMPR_D_BIT_MASK, ch&CMPR_C_BIT_MASK);
+        out |= cmpr_dec_pixel(p, (ch&CMPR_D_BIT_MASK)>>1, ch&CMPR_C_BIT_MASK);
 
         p->x++;
     }
@@ -448,7 +450,7 @@ void cmpr3_enc_push(cmpr3 *p, int raw) {
         } else { 
             p->dir_cnt++;
             if (p->dir_cnt == 127) {
-                p->enc_buff_dir[p->dir_index++] = (char) EncEscape;
+                p->enc_buff_dir[p->dir_index++] = 0xff;
                 p->dir_cnt = 0;
             }
         }

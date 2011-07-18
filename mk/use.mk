@@ -8,7 +8,7 @@ USEHDR =$(shell grep -H HDR $(USEPATH:%=%/Makefile) | sed 's/HDR *= *//' | \
 	awk -F 'Makefile:' '{split($$2,hdr,/ /); for (h in hdr) print $$1 hdr[h]};')
 
 INCARGS += $(USEPATH:%=-I%)
-LIBARGS += $(USEPATH:%=-L%) $(USELIB:%=-l%)
+LIBARGS += 
 HDR += $(USEHDR)
     
 debug: debug-use

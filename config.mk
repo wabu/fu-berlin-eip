@@ -11,21 +11,20 @@ INCDIR = ${PREFIX}/include
 
 # Includes and libs
 INCARGS += -I/share/download/XMOS/DevelopmentTools/11.2.0/target/include -I/share/download/XMOS/DevelopmentTools/11.2.0/target/include/gcc
-LIBARGS += -L/usr/lib -L/usr/local/lib -lc -lGL -lGLU -lglut -lX11 -lm
+LIBARGS += 
 
 TARGET_BOARD = -target=XK-1
 # Flags
-CFLAGS += -fms-extensions -Wall $(TARGET_BOARD) -g -O0 ${INCARGS}
-LDFLAGS += -g ${LIBARGS}
+CFLAGS += -fms-extensions -Wall $(TARGET_BOARD) -O3 ${INCARGS}
+LDFLAGS += ${LIBARGS} $(TARGET_BOARD)
 XCCFLAGS = -O3 -Wall $(TARGET_BOARD) ${INCARGS}
 
 # Compiler
 CC = xcc -c
 XCC = xcc
 # Linker (Under normal circumstances, this should *not* be 'ld')
-LD = cc
+LD = xcc
 # Library
-SO = cc -shared
 # Archiver
 AR = ar crs
 
