@@ -1,26 +1,29 @@
 include $(ROOT)/mk/common.mk
 
-USEPATH=$(ROOT)/$(USE)
-USENAME=$(shell grep NAME $(USEPATH)/Makefile | sed 's/NAME *= *//')
-USELIB =$(shell grep LIB $(USEPATH)/Makefile | sed 's/LIB *= *//')
-USEFILE=$(USEPATH)/$(USELIB).a
-USEHDR =$(shell grep HDR $(USEPATH)/Makefile | sed 's/HDR *= *//')
+USEPATH=$(USE:%=$(ROOT)/%)
+USENAME=$(shell grep -h NAME $(USEPATH:%=%/Makefile) | sed 's/NAME *= *//')
+USELIB =$(shell grep -h LIB $(USEPATH:%=%/Makefile) | sed 's/LIB *= *//')
+USEFILE=$(shell grep -H LIB $(USEPATH:%=%/Makefile) | sed 's/Makefile:LIB *= *//')
+USEHDR =$(shell grep -H HDR $(USEPATH:%=%/Makefile) | sed 's/HDR *= *//' | \
+	awk -F 'Makefile:' '{split($$2,hdr,/ /); for (h in hdr) print $$1 hdr[h]};')
 
-INCARGS += -I$(USEPATH)
-LIBARGS += -L$(USEPATH) -l$(USELIB)
+INCARGS += $(USEPATH:%=-I%)
+LIBARGS += $(USEPATH:%=-L%) $(USELIB:%=-l%)
 HDR += $(USEHDR)
+    
+debug: debug-use
+debug-use:
+	echo "names: $(USENAME)"
+	echo "libs:  $(USELIB)"
+	echo "files: $(USEFILE)"
+	echo "hdrs:  $(USEHDR)"
 
-$(BIN):      $(USEFILE)
-$(SHR:=.so): $(USEFILE)
-$(LIB:=.a):  $(USEFILE)
+$(BIN): $(USEFILE:=.a)
+$(SHR:=.so): $(USEFILE:=.a)
+$(LIB:=.a):  $(USEFILE:=.a)
 
-tar-self: tar-$(USE)
 
-tar-$(USE):
-	echo "MK tar-$(USENAME) in $(USEPATH)"
-	(cd $(USEPATH); make tar-self)
-
-$(USEFILE): $(USEHDR:=.h)
-	echo "MK $(USELIB).a in $(USEPATH)"
-	(cd $(USEPATH); make $(USELIB).a)
+$(USEFILE:=.a): $(USEHDR:=.h)
+	echo "MK $(dir $@)"
+	(cd $(dir $@); make)
 

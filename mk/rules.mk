@@ -31,7 +31,7 @@ INCUNINSTALL += $(INC:=.h.uninstall)
 	latex "$<"
 
 # link an executable
-$(BIN): $(SRC:=.o) $(BIN:=.o) $(USEFILE)
+$(BIN): $(SRC:=.o) $(BIN:=.o)
 	echo "LD $@"
 	$(LD) $^ $(LDFLAGS) -o $@
 
@@ -42,9 +42,8 @@ $(BIN): $(SRC:=.o) $(BIN:=.o) $(USEFILE)
 #	$(SO) $(SRC:=.o) -o $@
 
 # create a lib archive
-$(LIB:=.a): $(SRC:=.o) $(BIN:=.o) $(USEFILE)
+$(LIB:=.a): $(SRC:=.o) $(BIN:=.o)
 	echo "AR $@"
-	if test -n "$(USEFILE)"; then cp $(USEFILE) $@; fi
 	$(AR) $@ $^
 
 #cleanup
