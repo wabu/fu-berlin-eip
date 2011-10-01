@@ -13,11 +13,11 @@ INCDIR = ${PREFIX}/include
 INCARGS += -I/share/download/XMOS/DevelopmentTools/11.2.0/target/include -I/share/download/XMOS/DevelopmentTools/11.2.0/target/include/gcc
 LIBARGS += 
 
-TARGET_BOARD = -target=XK-1
+TARGET_BOARD = -target=XC-1
 # Flags
-CFLAGS += -fms-extensions -Wall $(TARGET_BOARD) -O3 ${INCARGS}
+CFLAGS += -fms-extensions -Wall $(TARGET_BOARD) -Os ${INCARGS}
 LDFLAGS += ${LIBARGS} $(TARGET_BOARD)
-XCCFLAGS = -O3 -Wall $(TARGET_BOARD) ${INCARGS}
+XCCFLAGS = -Os -Wall $(TARGET_BOARD) ${INCARGS}
 
 # Compiler
 CC = xcc -c
