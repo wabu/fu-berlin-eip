@@ -4,18 +4,20 @@
 #include <xs1.h>
 #include <xclib.h>
 #include <print.h>
-#include <ethernet_server.h>
-#include <ethernet_rx_client.h>
-#include <ethernet_tx_client.h>
-#include <checksum.h>
+//#include <ethernet_server.h>
+//#include <ethernet_rx_client.h>
+//#include <ethernet_tx_client.h>
+//#include <checksum.h>
 #include <cam.h>
 #include <i2c.h>
 /* our codec implementation  */
 #include <config.h>
 #include "compress.h"
 #include "netconf.h"
-#include "udp.h"
+#include "test.h"
+//#include "udp.h"
 
+/*
 mii_interface_t mii = {
 		XS1_CLKBLK_1,
 		XS1_CLKBLK_2,
@@ -28,9 +30,9 @@ mii_interface_t mii = {
 		XS1_PORT_1I,
 		XS1_PORT_4E
 };
-
+*/
 out port p_mii_resetn = XS1_PORT_1J;
-smi_interface_t smi = {XS1_PORT_1H, XS1_PORT_1G, 0};
+// smi_interface_t smi = {XS1_PORT_1H, XS1_PORT_1G, 0};
 
 
 clock clk_smi = XS1_CLKBLK_5;
@@ -43,9 +45,8 @@ int main()
 
 	chan rx[1], tx[1];
 	streaming chan camData;
-	streaming chan resData1;
-	streaming chan udpData1;
-	streaming chan udpData3;
+	streaming chan output;
+	streaming chan cmprData;
     
 
 	int mac_address[2];
@@ -53,7 +54,7 @@ int main()
 	mac_address[0] = (MAC_SRC_3 << 24) |(MAC_SRC_2 << 16) | (MAC_SRC_1 << 8) | MAC_SRC_0;
 	mac_address[1] = (MAC_SRC_5 << 8) | MAC_SRC_4;
 
-	phy_init(clk_smi, portClk, p_mii_resetn, smi, mii);
+	// phy_init(clk_smi, portClk, p_mii_resetn, smi, mii);
 
 	cam_Init();
 	// AutoExposure aus
@@ -66,12 +67,18 @@ int main()
 	cam_WriteRegValue(0x74, 0x40);
 	// IntegrationTime LOW
 	cam_WriteRegValue(0x75, 0x00);
+    tst_setup(w,h);
 	par
 	{
-		ethernet_server(mii, portClk, mac_address, rx, 1, tx, 1, null,null);
+		// ethernet_server(mii, portClk, mac_address, rx, 1, tx, 1, null,null);
+        //tst_run_debug_video(camData);
+		cmpr_encoder(camData, cmprData, w, h);
+	    cmpr_decoder(cmprData, output, w,h);
 		cam_DataCapture(camData);
-		cmpr3_encoder(camData, udpData1, w, h);
-		udpTransmitter(tx[0], rx[0], udpData1, udpData3);
+        //tst_run_dump_stream(cmpr);
+        //tst_run_debug_output(output);
+        tst_run_frame_statistics(output,w,h);
+        // udpTransmitter(tx[0], rx[0], udpData1, udpData3);
 	}
 
 	return 0;

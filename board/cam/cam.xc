@@ -4,11 +4,11 @@
  *  Created on: 11.02.2011
  *      Author: Michael
  */
-#include <xs1.h>
+#include <xclib.h>
+#include <platform.h>
 #include "cam.h"
 #include "i2c.h"
 #include "delays.h"
-#include <xclib.h>
 
 #define DATA_TIMER_DELAY (CAM_FREQ_DIV*8)
 
