@@ -145,6 +145,63 @@ inline int update_c(int *c, const int incr_flag) {
     return incr_flag;
 }
 
+inline void cmpr_context_load(cmpr *p, compr_context *c, int pixel) {
+    c->bv = p->b_vert[p->x];
+    c->bh = p->b_hori;
+
+    c->cv = p->c_vert[p->x];
+    c->ch = p->c_hori;
+
+    c->dh = c->bh+c->ch - pixel;
+    c->dv = c->bv+c->cv - pixel;
+}
+
+inline void cmpr_context_select_dir(cmpr *p, compr_context *c) {
+	switch (p->dir) {
+	case HORIZONTAL:
+        c->d = c->dh;
+        c->c = c->ch;
+        c->b = c->bh+c->c;
+		break;
+	case VERTICAL:
+        c->d = c->dv;
+        c->c = c->cv;
+        c->b = c->bv+c->c;
+		break;
+    }
+}
+
+
+blafoo() {
+   cmpr_context c;
+   cmpr_fill_context(p, &c, pixel);
+
+	if (p->dir == VERTICAL && abs(dh) < abs(dv)+CMPR_CHANGE_BIAS) {
+	    p->dir = HORIZONTAL;
+	} else 
+	if (p->dir == HORIZONTAL && abs(dv) < abs(dh)+CMPR_CHANGE_BIAS) {
+	    p->dir = VERTICAL;
+	}
+	
+	cmpr_context_select_dir()
+	cf = update_c(&c, (d*c<0));
+
+
+}
+
+
+
+
+        out <<= 2;
+        out |= (p->dir<<1) || cf;
+        
+        p->b_vert[p->x] = b;
+        p->b_hori = b;
+        p->c_vert[p->x] = c;
+        p->c_hori = c;
+
+        p->x++;
+
 
 
 ////
