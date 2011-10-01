@@ -1,12 +1,12 @@
 ROOT = ../..
-SELF = board/compat
-NAME = compat
+SELF = board/chksm
+NAME = chksm
 
 USE = board/common
 
-LIB = libcompat
-INC = common
-SRC = 
+LIB = libchksm
+INC = checksum
+SRC = checksum
 
 include ${ROOT}/mk/use.mk
 include ${ROOT}/mk/rules.mk

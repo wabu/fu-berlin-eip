@@ -4,7 +4,7 @@ NAME = codec
 
 LIB = libcmpr
 HDR = config codec
-INC =
+INC = config
 SRC = codec
 
 include ${ROOT}/mk/rules.mk
