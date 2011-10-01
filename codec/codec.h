@@ -119,3 +119,4 @@ extern inline int cmpr3_dec_push_dir(cmpr3 *p, char raw);
  */
 extern inline int cmpr3_dec_pull(cmpr3 *p);
 
+

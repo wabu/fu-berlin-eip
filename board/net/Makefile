@@ -2,7 +2,7 @@ ROOT = ../..
 SELF = board/net
 NAME = boardnet
 
-LIB = lib$(NAME)
+LIB = libboardnet
 # INC = $(basename $(wildcard *.h))
 SRC = $(basename $(wildcard *.xc)) $(basename $(wildcard *.c))
 
