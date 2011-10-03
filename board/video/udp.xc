@@ -11,47 +11,8 @@
 #include "netconf.h"
 
 unsigned char udpTxBuf[UDP_PACKET_LENGTH];
-unsigned char rxbuf[MAX_ETHERNET_PACKET_SIZE];
 
-void set_filter(chanend tx, chanend rx, const unsigned char own_mac_addr[6]) {
-	struct mac_filter_t f;
-
-	// ARP
-	f.opcode = OPCODE_AND;
-	for (int i = 0; i < 6; i++) {
-		f.dmac_msk[i] = 0xFF;
-		f.dmac_val[i] = 0xFF;
-		f.vlan_msk[i] = 0;
-	}
-	f.vlan_val[0] = 0x08;
-	f.vlan_val[1] = 0x06;
-	f.vlan_msk[0] = 0xFF;
-	f.vlan_msk[1] = 0xFF;
-	if (mac_set_filter(rx, 0, f) == -1) {
-		printstr("Filter configuration failed (1)\n");
-		exit(1);
-	}
-
-	// IP (ICMP/UDP)
-	f.opcode = OPCODE_AND;
-	for (int i = 0; i < 6; i++) {
-		f.dmac_msk[i] = 0xFF;
-		f.dmac_val[i] = own_mac_addr[i];
-		f.vlan_msk[i] = 0;
-	}
-	f.vlan_val[0] = 0x08;
-	f.vlan_val[1] = 0x00;
-	f.vlan_msk[0] = 0xFF;
-	f.vlan_msk[1] = 0xFF;
-	if (mac_set_filter(rx, 1, f) == -1) {
-		printstr("Filter configuration failed (2)\n");
-		exit(1);
-	}
-
-	printstr("Filter configured\n");
-}
-
-void udpConnect(chanend tx, chanend rx) {
+void udpConnect(chanend tx) {
 
 	unsigned char own_mac_addr[6];
 
@@ -66,7 +27,6 @@ void udpConnect(chanend tx, chanend rx) {
 		printstr("Get MAC address failed\n");
 		exit(1);
 	}
-    // set_filter(tx, rx, own_mac_addr);
 	printstr("Ethernet initialised\n");
 }
 
@@ -167,73 +127,55 @@ void udpBuildPacket(unsigned char txbuf[]) {
 	// setIPCheckSum(txbuf);
 
 }
-void receiver(chanend rx) {
-    // mac_set_custom_filter(rx, 0xFFFFFFFF);
-    unsigned int src_port;
-    unsigned int nbytes;
-    while (1) {
-          nbytes = mac_rx(rx, rxbuf, src_port);
-          printf("received packet [length=%d,src_port=%d]\n", nbytes, src_port); 
+
+
+void udpCmprTransmitter(chanend tx, chanend rx, streaming chanend cin) {
+    unsigned char cmprData;
+
+    udpConnect(tx);
+
+    while(1) {
+        cin :> cmprData;
+        printf("[data=%x]\n", cmprData);
     }
 }
 
-#pragma unsafe arrays
-void transmitter(chanend tx, streaming chanend data1, streaming chanend data2) {
-	int y = 0;
+void udpCamTransmitter(chanend tx, chanend rx, streaming chanend cin)
+{
 	int line = 0;
 	unsigned int off = 0;
 	unsigned int data;
-	int pUdpBuff = 11;
 
-	while (1) {
-		select {
-   			case data1 :> data: break;
-    		case data2 :> data:
-    			if (data == 0xFEFEFEFE)
-    			{
-    				line = 0;
-                    off = 0;
-    			}
-    			else if (data == 0xFFFFFFFF)
-    			{
-                    if  (line++ == 0) break;
-    				(udpTxBuf, unsigned short[]) [21] = line;
-
-                    mac_tx(tx, (udpTxBuf, unsigned int[]), UDP_PACKET_LENGTH, ETH_BROADCAST);
-                    printf("send [lines=%d,off=%d]!?\n---\n", line, off*4);
-    				off = 0;
-    			} else {
-                    if (11+off >= UDP_PACKET_LENGTH) {
-                        printf("EE packet length exceided");
-                        break;
-                    }
-                    (udpTxBuf, unsigned int[]) [11+off] = data;
-                    off++;
-                }
-  				break;
-  			default:
-                break;
-  				if ( pUdpBuff == (CAM_PIXEL_WIDTH + 11) )
-  				{
-  					pUdpBuff = 11;
-  					(udpTxBuf, unsigned short[]) [21] = y++;
-  					mac_tx(tx, (udpTxBuf, unsigned int[]), UDP_PACKET_LENGTH, ETH_BROADCAST);
-  					if (y == CAM_PIXEL_HEIGHT)
-  						y = 0;
-  				}
-  			break;
-  		}
-	}
-}
-
-void udpTransmitter(chanend tx, chanend rx, streaming chanend data1, streaming chanend data2)
-{
-	udpConnect(tx, rx);
+	udpConnect(tx);
 	udpBuildPacket(udpTxBuf);
 
 	set_thread_fast_mode_on();
-    par {
-        receiver(rx);
-        transmitter(tx, data1, data2);
-    }
+
+	while (1) {
+    	cin :> data;
+        printf("[data=%x]\n", data);
+    	if (data == 0xFEFEFEFE)
+    	{
+    		line = 0;
+            off = 0;
+    	}
+    	else if (data == 0xFFFFFFFF)
+    	{
+            // if this is the first line of a new frame, there is nothing
+            // to transmit. Proceed with next pixels
+            if  (line++ == 0) continue;
+    		(udpTxBuf, unsigned short[]) [21] = line;
+
+            mac_tx(tx, (udpTxBuf, unsigned int[]), UDP_PACKET_LENGTH, ETH_BROADCAST);
+            printf("send [lines=%d,off=%d]!?\n---\n", line, off*4);
+  			off = 0;
+   		} else {
+            if (11+off >= UDP_PACKET_LENGTH) {
+                printf("EE packet length exceided");
+                continue;
+            }
+            (udpTxBuf, unsigned int[]) [11+off] = data;
+            off++;
+        }
+	}
 }

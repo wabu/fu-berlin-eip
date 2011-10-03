@@ -42,11 +42,12 @@ int main()
     int w=VID_WIDTH;
     int h=VID_HEIGHT;
 
-	chan rx[1], tx[1];
+	chan rx[2], tx[2];
 	streaming chan camData;
 	streaming chan cmprData;
-    streaming chan udpData1;
+    streaming chan udpData;
     
+    unsigned char x;
 
 	int mac_address[2];
 
@@ -69,10 +70,11 @@ int main()
     tst_setup(w,h);
 	par
 	{
-		ethernet_server(mii, portClk, mac_address, rx, 1, tx, 1, null,null);
-        udpTransmitter(tx[0], rx[0], cmprData, camData);
+		ethernet_server(mii, portClk, mac_address, rx, 2, tx, 2, null,null);
+		cmpr_encoder_with_bypass(camData, udpData, cmprData, w, h);
+        udpCamTransmitter(tx[0], rx[0], udpData);
+        udpCmprTransmitter(tx[1], rx[1], cmprData);
         // tst_run_debug_video(camData);
-		// cmpr_encoder_with_bypass(camData, udpData1, cmprData, w, h);
 	    // cmpr_decoder(cmprData, output, w,h);
         // tst_run_debug_output(camData);
         // tst_run_frame_statistics(output,w,h);

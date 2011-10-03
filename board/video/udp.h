@@ -14,6 +14,7 @@
 extern unsigned char udpTxBuf[UDP_PACKET_LENGTH];
 
 void udpBuildPacket(unsigned char txbuf[]);
-void udpTransmitter(chanend tx, chanend rx, streaming chanend data1, streaming chanend data2);
-void udpConnect(chanend tx, chanend rx);
+void udpCamTransmitter(chanend tx, chanend rx, streaming chanend cin);
+void udpCmprTransmitter(chanend tx, chanend rx, streaming chanend cin);
+void udpConnect(chanend tx);
 #endif
