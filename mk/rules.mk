@@ -2,7 +2,7 @@
 include $(ROOT)/mk/common.mk
 include $(ROOT)/mk/tar.mk
 
-CLEAN += $(BIN:=.clean) $(BIN:=.o.clean) $(LIB:=.a.clean) $(SHR:=.so.clean) $(SRC:=.o.clean)
+CLEAN += $(BIN:=$(INFIX)$(BINSUFFIX).clean) $(BIN:=$(INFIX).o.clean) $(LIB:=$(INFIX).a.clean) $(SHR:=$(INFIX).so.clean) $(SRC:=$(INFIX).o.clean)
 
 BININSTALL += $(BIN:=.install)
 RESINSTALL += $(RES:=.install)
@@ -17,12 +17,12 @@ INCUNINSTALL += $(INC:=.h.uninstall)
 
 
 # compile c files
-%.o:	%.c  $(INC:=.h) $(HDR:=.h)
+%$(INFIX).o:	%.c  $(INC:=.h) $(HDR:=.h)
 	echo "CC $<"
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # compile c files
-%.o:	%.xc $(INC:=.h) $(HDR:=.h)
+%$(INFIX).o:	%.xc $(INC:=.h) $(HDR:=.h)
 	echo "XCC $<"
 	$(XCC) $(XCCFLAGS) -c $< -o $@
 
@@ -31,9 +31,9 @@ INCUNINSTALL += $(INC:=.h.uninstall)
 	latex "$<"
 
 # link an executable
-$(BIN): $(SRC:=.o) $(BIN:=.o)
+$(BIN:=$(BINSUFFIX)): $(SRC:=$(INFIX).o) $(BIN:=$(INFIX).o)
 	echo "LD $@"
-	$(LD) $^ $(LDFLAGS) -o $@.xe
+	$(LD) $^ $(LDFLAGS) -o $@
 
 # not needed
 # create a shared lib
@@ -42,9 +42,9 @@ $(BIN): $(SRC:=.o) $(BIN:=.o)
 #	$(SO) $(SRC:=.o) -o $@
 
 # create a lib archive
-$(LIB:=.a): $(SRC:=.o) $(BIN:=.o)
+$(LIB:=$(INFIX).a): $(SRC:=$(INFIX).o) $(BIN:=$(INFIX).o)
 	echo "AR $@"
-	$(AR) $@ $(SRC:=.o) $(BIN:=.o)
+	$(AR) $@ $(SRC:=$(INFIX).o) $(BIN:=$(INFIX).o)
 
 #cleanup
 $(CLEAN):
@@ -89,7 +89,7 @@ $(INCUNINSTALL):
 	echo "UN $(@:.uninstall=) from $(INCDIR)"
 	rm -f $(INCDIR)/$(@:.uninstall=)
 
-all: $(BIN) $(SHR:=.so) $(LIB:=.a)
+all: $(BIN:=$(BINSUFFIX)) $(SHR:=$(INFIX).so) $(LIB:=$(INFIX).a)
 clean: $(CLEAN)
 
 install: $(BININSTALL) $(LIBINSTALL) $(SHRINSTALL) $(INCINSTALL) $(RESINSTALL)

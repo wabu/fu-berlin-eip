@@ -1,4 +1,4 @@
-include $(ROOT)/config.mk
+include $(ROOT)/config-common.mk
 BASE?=.
 IFS=\n
 

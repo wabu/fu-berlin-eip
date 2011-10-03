@@ -7,4 +7,5 @@ LIB = libboardnet
 SRC = $(basename $(wildcard *.xc)) $(basename $(wildcard *.c))
 
 
+include ${ROOT}/config-xmos.mk
 include ${ROOT}/mk/rules.mk
