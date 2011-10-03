@@ -1,14 +1,17 @@
 #include <print.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <cam.h>
 #include <delays.h>
 #include <ethernet_tx_client.h>
 #include <ethernet_rx_client.h>
+#include <mii.h>
 
 #include "udp.h"
 #include "netconf.h"
 
-unsigned int udpTxBuf[380];
+unsigned char udpTxBuf[UDP_PACKET_LENGTH];
+unsigned char rxbuf[MAX_ETHERNET_PACKET_SIZE];
 
 void set_filter(chanend tx, chanend rx, const unsigned char own_mac_addr[6]) {
 	struct mac_filter_t f;
@@ -48,19 +51,11 @@ void set_filter(chanend tx, chanend rx, const unsigned char own_mac_addr[6]) {
 	printstr("Filter configured\n");
 }
 
-void udpConnect(chanend tx) {
+void udpConnect(chanend tx, chanend rx) {
 
 	unsigned char own_mac_addr[6];
 
-	own_mac_addr[0] = MAC_SRC_0;
-	own_mac_addr[1] = MAC_SRC_1;
-	own_mac_addr[2] = MAC_SRC_2;
-	own_mac_addr[3] = MAC_SRC_3;
-	own_mac_addr[4] = MAC_SRC_4;
-	own_mac_addr[5] = MAC_SRC_5;
-
 	printstr("Connecting...\n");
-
 	{
 		timer tmr;
 		unsigned t;
@@ -71,7 +66,7 @@ void udpConnect(chanend tx) {
 		printstr("Get MAC address failed\n");
 		exit(1);
 	}
-
+    // set_filter(tx, rx, own_mac_addr);
 	printstr("Ethernet initialised\n");
 }
 
@@ -98,22 +93,6 @@ void setIPCheckSum(unsigned char buff[]) {
 
 	buff[24] = sum >> 8;
 	buff[25] = sum;
-
-}
-
-void setUDPData(unsigned char txbuf[], unsigned short lineNum,
-		unsigned char data[]) {
-	txbuf[42] = lineNum;
-	txbuf[43] = (lineNum >> 8);
-
-	//txbuf[19] = lineNum;
-	//txbuf[18] = (lineNum >> 8);
-
-
-	for (int i = 0; i < 1280; i++)
-		txbuf[44 + i] = data[i];
-
-	//setIPCheckSum(txbuf);
 
 }
 
@@ -185,57 +164,76 @@ void udpBuildPacket(unsigned char txbuf[]) {
 	for (int i = 0; i < UDP_DATA_LENGTH; i++)
 		txbuf[42 + i] = 0;
 
-	setIPCheckSum(txbuf);
+	// setIPCheckSum(txbuf);
 
 }
+void receiver(chanend rx) {
+    // mac_set_custom_filter(rx, 0xFFFFFFFF);
+    unsigned int src_port;
+    unsigned int nbytes;
+    while (1) {
+          nbytes = mac_rx(rx, rxbuf, src_port);
+          printf("received packet [length=%d,src_port=%d]\n", nbytes, src_port); 
+    }
+}
+
 #pragma unsafe arrays
-void udpTransmitter(chanend tx, chanend rx, streaming chanend data1, streaming chanend data2)
-{
+void transmitter(chanend tx, streaming chanend data1, streaming chanend data2) {
 	int y = 0;
-	int i = 0;
-	unsigned int t = 0;
+	int line = 0;
+	unsigned int off = 0;
 	unsigned int data;
 	int pUdpBuff = 11;
-	udpConnect(tx);
-	//set_filter(tx, rx, own_mac_addr);
-	udpBuildPacket((udpTxBuf, unsigned char[]));
+
+	while (1) {
+		select {
+   			case data1 :> data: break;
+    		case data2 :> data:
+    			if (data == 0xFEFEFEFE)
+    			{
+    				line = 0;
+                    off = 0;
+    			}
+    			else if (data == 0xFFFFFFFF)
+    			{
+                    if  (line++ == 0) break;
+    				(udpTxBuf, unsigned short[]) [21] = line;
+
+                    mac_tx(tx, (udpTxBuf, unsigned int[]), UDP_PACKET_LENGTH, ETH_BROADCAST);
+                    printf("send [lines=%d,off=%d]!?\n---\n", line, off*4);
+    				off = 0;
+    			} else {
+                    if (11+off >= UDP_PACKET_LENGTH) {
+                        printf("EE packet length exceided");
+                        break;
+                    }
+                    (udpTxBuf, unsigned int[]) [11+off] = data;
+                    off++;
+                }
+  				break;
+  			default:
+                break;
+  				if ( pUdpBuff == (CAM_PIXEL_WIDTH + 11) )
+  				{
+  					pUdpBuff = 11;
+  					(udpTxBuf, unsigned short[]) [21] = y++;
+  					mac_tx(tx, (udpTxBuf, unsigned int[]), UDP_PACKET_LENGTH, ETH_BROADCAST);
+  					if (y == CAM_PIXEL_HEIGHT)
+  						y = 0;
+  				}
+  			break;
+  		}
+	}
+}
+
+void udpTransmitter(chanend tx, chanend rx, streaming chanend data1, streaming chanend data2)
+{
+	udpConnect(tx, rx);
+	udpBuildPacket(udpTxBuf);
 
 	set_thread_fast_mode_on();
-	while (1)
-	{
-		select
-		{
-			case data1 :> udpTxBuf[pUdpBuff++]:
-				break;
-			case data2 :> data:
-				if (data == 0xFEFEFEFE)
-				{
-					i = 1;
-				}
-				else if (data == 0xFFFFFFFF)
-				{
-					(udpTxBuf, unsigned short[]) [21] = 0xFFFF;
-					(udpTxBuf, unsigned short[]) [22] = t;
-					mac_tx(tx, udpTxBuf, UDP_PACKET_LENGTH, ETH_BROADCAST);
-					i = 0;
-					t = 0;
-				}
-				else if (i == 1)
-				{
-					udpTxBuf[12+t] = data;
-					t++;
-				}
-				break;
-			default:
-				if ( pUdpBuff == (CAM_PIXEL_WIDTH + 11) )
-				{
-					pUdpBuff = 11;
-					(udpTxBuf, unsigned short[]) [21] = y++;
-					mac_tx(tx, udpTxBuf, UDP_PACKET_LENGTH, ETH_BROADCAST);
-					if (y == CAM_PIXEL_HEIGHT)
-						y = 0;
-				}
-			break;
-		}
-	}
+    par {
+        receiver(rx);
+        transmitter(tx, data1, data2);
+    }
 }

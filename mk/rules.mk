@@ -1,5 +1,4 @@
 .SUFFIXES: .a .so .c .xc .h .o .O .install .inhead .inlib .uninstall .unhead .unlib
-include $(ROOT)/mk/common.mk
 include $(ROOT)/mk/tar.mk
 
 CLEAN += $(BIN:=.clean) $(BIN:=.o.clean) $(LIB:=.a.clean) $(SHR:=.so.clean) $(SRC:=.o.clean)
@@ -18,7 +17,7 @@ INCUNINSTALL += $(INC:=.h.uninstall)
 
 # compile c files
 %.o:	%.c  $(INC:=.h) $(HDR:=.h)
-	echo "CC $<"
+	echo "CC $< ($(CFLAGS))"
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # compile c files

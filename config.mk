@@ -13,7 +13,7 @@ INCDIR = ${PREFIX}/include
 INCARGS += -I/share/download/XMOS/DevelopmentTools/11.2.0/target/include -I/share/download/XMOS/DevelopmentTools/11.2.0/target/include/gcc
 LIBARGS += 
 
-TARGET_BOARD = -target=XC-1
+TARGET_BOARD = ${ROOT}/xViMo-L1C.xn
 # Flags
 CFLAGS += -fms-extensions -Wall $(TARGET_BOARD) -Os ${INCARGS}
 LDFLAGS += ${LIBARGS} $(TARGET_BOARD)

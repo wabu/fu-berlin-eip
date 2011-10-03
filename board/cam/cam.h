@@ -13,7 +13,7 @@
 
 // Kammerageschwindigkeit
 // Kamerafrequenz = 100MHz / CAM_FREQ_DIV; (CAM_FREQ_DIV = 4,6,8,10...)
-#define CAM_FREQ_DIV 32
+#define CAM_FREQ_DIV 4
 
 void cam_WriteRegValue(unsigned char addr, unsigned char  val);
 unsigned char cam_ReadRegValue(unsigned char addr);
