@@ -9,4 +9,4 @@ INC = cam i2c
 SRC = cam i2c
 
 include ${ROOT}/mk/use.mk
-include ${ROOT}/mk/rules.mk
+include ${ROOT}/mk/xmos.mk

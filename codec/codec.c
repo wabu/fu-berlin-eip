@@ -6,16 +6,16 @@
  * The basic idea is to encode a pixel as reference direction and change
  * value: $b = ref + c$. 
  * The reference direction can be the horizontal or vertical pixel (cmpr), or
- * for 3d compression (cmpr3) the previouse picture, which can be encoded as
- * one bit.
- * The value of the change value is also encoded as a one bit flag, either the
- * change value is increased or decreased and inverted.
+ * for 3d compression (cmpr3) the value in the previouse picture, which can be
+ * encoded as one bit.
+ * The value of the change is also encoded as a one bit flag, either the
+ * change is increased or decreased and inverted.
  *
  * The encoding/decoding process is splited into different subtasks.
  * - reference values are loaded out of the codecs storage into the context.
- *   it also calculates the distance of each reference value to the actual pixel
+ *   The distance of each reference value to the actual pixel is also calculated.
  *   @see cmpr_context_load
- * - when the direction is choosen, the vals are selected in the context
+ * - after the direction is calculated, the vals are selected in the context accordingly
  *   @see cmpr_context_select_dir
  * - the change value is updated
  *   @see cmpr_context_update_c
@@ -109,7 +109,7 @@ static inline void cmpr3_context_load(cmpr3 *p, cmpr3_context *x, int pixel) {
 }
 
 /** 
- * updates the c_val according to the c-flag in context
+ * updates the c_val in the context according to the c-flag
  */
 static inline void cmpr_context_update_c(cmpr_context *x, int flag) {
     int *c = &(x->c_val);
@@ -122,7 +122,7 @@ static inline void cmpr_context_update_c(cmpr_context *x, int flag) {
         if (abs(*c)>=CMPR_C_MIN*2) (*c)=(*c)/2;
     }
 }
-/** updates the c_val according to the c_flag in context*/
+/** updates the c_val in the context according to the c_flag */
 static inline void cmpr3_context_update_c(cmpr3_context *x, int flag) {
     cmpr_context_update_c((cmpr_context*)x, flag);
 }

@@ -8,6 +8,7 @@ USEHDR =$(shell grep -H HDR $(USEPATH:%=%/Makefile) | sed 's/HDR *= *//' | \
 	awk -F 'Makefile:' '{split($$2,hdr,/ /); for (h in hdr) print $$1 hdr[h]};')
 
 INCARGS += $(USEPATH:%=-I%)
+XMOS_INCARGS += $(USEPATH:%=-I%)
 LIBARGS += 
 HDR += $(USEHDR)
     
@@ -18,12 +19,11 @@ debug-use:
 	echo "files: $(USEFILE)"
 	echo "hdrs:  $(USEHDR)"
 
-$(BIN): $(USEFILE:=.a)
-$(SHR:=.so): $(USEFILE:=.a)
-$(LIB:=.a):  $(USEFILE:=.a)
+$(BIN:=$(BINSUFFIX)): $(USEFILE:=$(INFIX).a)
+$(SHR:=$(INFIX).so): $(USEFILE:=$(INFIX).a)
+$(LIB:=$(INFIX).a):  $(USEFILE:=$(INFIX).a)
 
-
-$(USEFILE:=.a): $(USEHDR:=.h)
+$(USEFILE:=$(INFIX).a): $(USEHDR:=.h)
 	echo "MK $(dir $@)"
 	(cd $(dir $@); make)
 

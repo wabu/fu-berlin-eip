@@ -2,5 +2,5 @@ ROOT = .
 SELF = .
 NAME = eip
 
-SUBS = board codec
+SUBS = board codec receiver
 include ${ROOT}/mk/dir.mk

@@ -5,4 +5,7 @@ NAME = common
 LIB = libcommon
 INC = delays
 SRC = delays
-include ${ROOT}/mk/rules.mk
+
+include ${ROOT}/mk/common.mk
+include ${ROOT}/mk/xmos.mk
+

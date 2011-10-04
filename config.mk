@@ -1,5 +1,3 @@
-# Customize below to fit your system
-
 # paths
 PREFIX = ${ROOT}
 BINDIR = ${PREFIX}/bin
@@ -10,21 +8,38 @@ LIBDIR = ${PREFIX}/lib
 INCDIR = ${PREFIX}/include
 
 # Includes and libs
-INCARGS += -I/share/download/XMOS/DevelopmentTools/11.2.0/target/include -I/share/download/XMOS/DevelopmentTools/11.2.0/target/include/gcc
-LIBARGS += 
+INCARGS += -I/usr/include
+LIBARGS += -L/usr/lib
 
-TARGET_BOARD = ${ROOT}/xViMo-L1C.xn
 # Flags
-CFLAGS += -fms-extensions -Wall $(TARGET_BOARD) -Os ${INCARGS}
-LDFLAGS += ${LIBARGS} $(TARGET_BOARD)
-XCCFLAGS = -Os -Wall $(TARGET_BOARD) ${INCARGS}
+CFLAGS += -std=c99 -Os -fms-extensions -Wall $(INCARGS)
+LDFLAGS += $(LIBARGS)
 
 # Compiler
-CC = xcc -c
-XCC = xcc
+CC = gcc -c
 # Linker (Under normal circumstances, this should *not* be 'ld')
-LD = xcc
-# Library
+LD = gcc
 # Archiver
 AR = ar crs
+
+## XMOS
+
+# Includes and libs
+XMOS_INCARGS += -I/share/download/XMOS/DevelopmentTools/11.2.0/target/include -I/share/download/XMOS/DevelopmentTools/11.2.0/target/include/gcc
+XMOS_LIBARGS += 
+XMOS_BINSUFFIX = .xe
+
+# Flags
+TARGET_BOARD = ${ROOT}/xViMo-L1C.xn
+XMOS_CFLAGS += -Os -fms-extensions -Wall $(TARGET_BOARD) $(XMOS_INCARGS)
+XMOS_XCCFLAGS += -Os -Wall $(TARGET_BOARD) $(XMOS_INCARGS)
+XMOS_LDFLAGS += $(TARGET_BOARD) $(XMOS_LIBARGS)
+
+# Compiler
+XMOS_CC = xcc -c
+XMOS_XCC = xcc
+# Linker (Under normal circumstances, this should *not* be 'ld')
+XMOS_LD = xcc
+# Archiver
+XMOS_AR = ar crs
 

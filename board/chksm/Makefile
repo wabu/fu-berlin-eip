@@ -9,4 +9,4 @@ INC = checksum
 SRC = checksum
 
 include ${ROOT}/mk/use.mk
-include ${ROOT}/mk/rules.mk
+include ${ROOT}/mk/xmos.mk

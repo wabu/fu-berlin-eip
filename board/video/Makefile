@@ -9,4 +9,4 @@ SRC = compress test udp
 USE = codec board/common board/compat board/cam board/chksm board/net
 
 include ${ROOT}/mk/use.mk
-include ${ROOT}/mk/rules.mk
+include ${ROOT}/mk/xmos.mk

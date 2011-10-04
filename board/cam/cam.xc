@@ -8,7 +8,7 @@
 #include <platform.h>
 #include "cam.h"
 #include "i2c.h"
-#include "delays.h"
+#include <delays.h>
 
 #define DATA_TIMER_DELAY (CAM_FREQ_DIV*8)
 
