@@ -32,3 +32,4 @@
 #define vid_start_frame(chan) chan <: VID_NEW_FRAME
 #define vid_start_line(chan) chan <: VID_NEW_LINE
 #define vid_put_pixel(chan, val) chan <: (char)(val)
+#define vid_put_raw(chan, val) chan <: val

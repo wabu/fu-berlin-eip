@@ -1,8 +1,8 @@
 #include <stdlib.h>
 
+#include "channel.h"
 #include "compress.h"
 #include "config.h"
-
 
 ////
 /// cmpr2 Storage Class
@@ -13,22 +13,29 @@
  */
 typedef struct cmpr {
     int w,h;
-    int x,y;
 
     int dir;
+    int x;
 
-    unsigned char *b_vert;
     unsigned char b_hori;
+    signed   char c_hori;
 
-    signed char *c_vert;
-    signed char c_hori;
+    unsigned char b_vert[VID_WIDTH];
+    signed   char c_vert[VID_WIDTH];
 } cmpr;
 
+/** context for codec comptations */
+typedef struct cmpr_context {
+    int b_val, b_vert, b_hori;
+    int c_vert, c_hori, c_flag, c_val;
+    int d_val, d_vert, d_hori;
+    int dir;
+} cmpr_context;
 
 /**
  * frees resources allocated by p.
  * Note: p itself is not freed
- * \param p pointer to p struct
+ *
  */
 void cmpr_free(cmpr *p) {
     if (!p) return;
@@ -36,21 +43,22 @@ void cmpr_free(cmpr *p) {
     if (p->b_vert) free(p->b_vert);
     if (p->c_vert) free(p->c_vert);
 
-    p->b_vert = 0;
-    p->c_vert = 0;
+    //p->b_vert = 0;
+    //p->c_vert = 0;
 }
 
 /** 
  * initialices cmpr struct, frees p on falure
  * @param p pointer to allocated struct
+ * TODO docu for w, h
  * @return  p on success, frees p and returns 0 on failure 
  */
 cmpr *cmpr_init(cmpr *p, int w, int h) {
     if (!p) 
         return 0;
 
-    p->b_vert = (unsigned char*)malloc(sizeof(char) * w);
-    p->c_vert = (signed char*)malloc(sizeof(char) * w);
+    //p->b_vert = (unsigned char*)malloc(sizeof(char) * w);
+    //p->c_vert = (signed char*)malloc(sizeof(char) * w);
 
     if (!p->b_vert || !p->c_vert) {
         cmpr_free(p);
@@ -88,10 +96,17 @@ typedef struct cmpr3 {
     signed char *c_prevp;   /**< pointer to current subsampling c-cell */
 } cmpr3;
 
+/** context for codec calculations */
+typedef struct cmpr3_context {
+    cmpr_context c;
+    // TODO: can we use chars for this
+    int b_prev, c_prev, d_prev;
+} cmpr3_context;
+
 /**
  * frees resources allocated by q.
  * Note: q itself is not freed
- * \param q pointer to p struct
+ *param q pointer to p struct
  */
 void cmpr3_free(cmpr3 *q) {
     if (!q) return;
@@ -135,14 +150,57 @@ cmpr3 *cmpr3_init(cmpr3* q, int w, int h, int sub, int sync) {
 /// Codec's Functionality
 //
 
-inline int update_c(int *c, const int incr_flag) {
-    if (incr_flag) {
-        *c = *c+*c/2;
+
+static inline void cmpr_context_load(cmpr *p, cmpr_context *c, int pixel) {
+    c->dir = p->dir;
+    c->b_vert = p->b_vert[p->x];
+    c->b_hori = p->b_hori;
+
+    c->c_vert = p->c_vert[p->x];
+    c->c_hori = p->c_hori;
+
+    if (c->c_vert +  c->b_vert <= 0)
+        c->c_vert = -c->b_vert;
+    if (c->c_hori +  c->b_hori <= 0)
+        c->c_hori = -c->b_hori;
+
+    c->d_hori = c->b_hori + c->c_hori - pixel;
+    c->d_vert = c->b_vert + c->c_vert - pixel;
+}
+
+static inline void cmpr_context_update_c(cmpr_context *ctx) {
+    int *c = &(ctx->c_val);
+    if (ctx->c_flag) {
+        (*c) = (*c) + (*c)/2;
     } else {
-        *c=-*c;
-        if (abs(*c)>=CMPR_C_MIN*2) *c=*c/2;
+        (*c) = -(*c);
+        if ( abs(*c)>=CMPR_C_MIN*2) (*c)=(*c)/2;
     }
-    return incr_flag;
+}
+
+
+static inline void cmpr_context_select_dir(cmpr_context *c) {
+    switch (c->dir) {
+    case HORIZONTAL:
+        c->d_val = c->d_hori;
+        c->c_val = c->c_hori;
+        c->b_val = c->b_hori + c->c_hori;
+        break;
+
+    case VERTICAL:
+        c->d_val = c->d_vert;
+        c->c_val = c->c_vert;
+        c->b_val = c->b_vert + c->c_vert;
+        break;
+    }
+}
+
+static inline void cmpr_context_store(cmpr *p, cmpr_context *c) {
+    p->b_vert[p->x] = c->b_val;
+    p->b_hori = c->b_val;
+    p->c_vert[p->x] = c->c_val;
+    p->c_hori = c->c_val;
+    p->dir = c->dir;
 }
 
 inline void cmpr_context_load(cmpr *p, compr_context *c, int pixel) {
@@ -213,140 +271,101 @@ cmpr_ref cmpr_create(int w, int h) {
     cmpr *p;
 
     p = (cmpr*)malloc(sizeof(cmpr));
-    ref.p = cmpr_init(p, w, h);
+    ref.p = (int)cmpr_init(p, w, h);
 
     return ref;
 }
 
 void cmpr_delete(cmpr_ref ref) {
-    if (!ref.p) return 0;
-    cmpr_free(ref.p);
-    free(ref.p);
+    if (!ref.p) return;
+    cmpr_free((cmpr*)ref.p);
+    free((cmpr*)ref.p);
     ref.p = 0;
 }
 
 cmpr3_ref cmpr3_create(int w, int h, int sub, int sync) {
     cmpr3_ref ref; 
-    cmpr3 *q; 
+    cmpr3 *p; 
 
-    q = (cmpr3*)malloc(sizeof(cmpr3));
-    ref.q = cmpr3_init(q, w, h, sub, sync);
+    p = (cmpr3*)malloc(sizeof(cmpr3));
+    ref.p = (int)cmpr3_init(p, w, h, sub, sync);
 
     return ref;
 }
 
 void cmpr3_delete(cmpr3_ref ref) {
-    if (!ref.q) return 0;
-    cmpr3_free(ref.q);
-    free(ref.q);
-    ref.q = 0;
+    if (!ref.p) return;
+    cmpr3_free((cmpr3*)ref.p);
+    free((cmpr3*)ref.p);
+    ref.p = 0;
 }
 
-__inline__ void cmpr_start_frame(cmpr_ref ref) {
-    cmpr *p = ref.p;
-
+void cmpr_start_frame(cmpr *const p) {
     p->dir = CMPR_HV_DEFAULT;
-    p->y = -1;
 
     for (int i=0; i<p->w; i++) {
         p->b_vert[i] = CMPR_B_DEFAULT;
         p->c_vert[i] = CMPR_C_DEFAULT;
     }
 }
-__inline__ void cmpr_start_line(cmpr_ref ref) {
-    cmpr *p = ref.p;
-
+void cmpr_start_line(cmpr *const p) {
     p->b_hori = CMPR_B_DEFAULT;
     p->c_hori = CMPR_C_DEFAULT;
 
     p->x = 0;
-    p->y++;
 }
 
-__inline__ char cmpr_enc(cmpr_ref ref, int raw) {
-    char out = 0;
-    cmpr *p = ref.p;
+static inline char cmpr_enc(cmpr *const p, int raw) {
+    cmpr_context c;
+    char out;
 
     for (int valid=32, pixel = (raw >> (valid-=8)) & 0xff;
              valid>=0; pixel = (raw >> (valid-=8)) & 0xff) {
-        int d,c,b, cf;
-        int bv = p->b_vert[p->x];
-        int bh = p->b_hori;
 
-        int cv = p->c_vert[p->x];
-        int ch = p->c_hori;
+        cmpr_context_load(p, &c, pixel);
 
-        int dh = bh+ch - pixel;
-        int dv = bv+cv - pixel;
-
-        if (p->dir == VERTICAL && abs(dh) < abs(dv)+CMPR_CHANGE_BIAS) {
-            p->dir = HORIZONTAL;
+        if (c.dir == VERTICAL && abs(c.d_hori) < abs(c.d_vert)+CMPR_CHANGE_BIAS) {
+            c.dir = HORIZONTAL;
         } else 
-        if (p->dir == HORIZONTAL && abs(dv) < abs(dh)+CMPR_CHANGE_BIAS) {
-            p->dir = VERTICAL;
+        if (c.dir == HORIZONTAL && abs(c.d_vert) < abs(c.d_hori)+CMPR_CHANGE_BIAS) {
+            c.dir = VERTICAL;
         }
+        
+        cmpr_context_select_dir(&c);
 
-        if (p->dir == HORIZONTAL) {
-            d = dh;
-            c = ch;
-            b = bh+c;
-        } else {
-            d = dv;
-            c = cv;
-            b = bv+c;
-        }
+        c.c_flag = (c.d_val * c.c_val < 0);
 
-        cf = update_c(&c, (d*c<0));
+        cmpr_context_update_c(&c);
+
+        cmpr_context_store(p, &c);
 
         out <<= 2;
-        out |= (p->dir<<1) || cf;
-        
-        p->b_vert[p->x] = b;
-        p->b_hori = b;
-        p->c_vert[p->x] = c;
-        p->c_hori = c;
+        out |= (c.dir<<1) | c.c_flag;
 
         p->x++;
     }
-
     return out;
 }
 
-__inline__ int  cmpr_dec(cmpr_ref ref, char enc) {
+static inline int cmpr_dec(cmpr *const p, char enc) {
     int out = 0;
-    cmpr *p = ref.p;
+    cmpr_context c;
 
     for (int valid= 8, ch = (enc >> (valid-=2));
              valid>=0; ch = (enc >> (valid-=2))) {
-        int c,b;
-        int cf =  ch & CMPR_C_BIT_MASK;
-        int dir = ch & CMPR_H_BIT_MASK;
+        c.c_flag = ch & 0x1;
+        c.dir    = (ch>>1) & 0x1;
+        
+        cmpr_context_load(p, &c, 0);
+	cmpr_context_select_dir(&c);
 
-        int bv = p->b_vert[p->x];
-        int bh = p->b_hori;
-
-        int cv = p->c_vert[p->x];
-        int ch = p->c_hori;
-
-        if (dir == HORIZONTAL) {
-            c = ch;
-            b = bh+c;
-        } else {
-            c = cv;
-            b = bv+c;
-        }
+        //printf("(%d,%d:%d)", dir, c_flag, c_val);
 
         out <<= 8;
-        out |= b;
+        out |= c.b_val;
 
-        update_c(&c, cf);
-
-        p->dir = dir;
-
-        p->b_vert[p->x] = b;
-        p->b_hori = b;
-        p->c_vert[p->x] = c;
-        p->c_hori = c;
+        cmpr_context_update_c(&c);
+        cmpr_context_store(p, &c);
 
         p->x++;
     }
@@ -354,9 +373,68 @@ __inline__ int  cmpr_dec(cmpr_ref ref, char enc) {
     return out;
 }
 
-__inline__ void cmpr3_enc_push(cmpr3_ref ref, int raw);
-__inline__ void cmpr3_enc_finish_line(cmpr3_ref ref);
-__inline__ int cmpr3_enc_pull(cmpr3_ref ref, char *enc);
-__inline__ void cmpr3_enc_finish_fame(cmpr3_ref ref);
+void cmpr_encoder(chanend cin, chanend cout) {
+    cmpr c;
+    cmpr *p = cmpr_init(&c, VID_WIDTH, VID_HEIGHT);
+
+    int raw;
+    char enc;
+
+    for (;;) {
+        raw = chan_readi(cin);
+        switch (raw) {
+            case VID_NEW_FRAME:
+                chan_writec(cout, CMPR_ESCAPE);
+                chan_writec(cout, CMPR_NEW_FRAME);
+                cmpr_start_frame(p);
+                break;
+            case VID_NEW_LINE:
+                chan_writec(cout, CMPR_ESCAPE);
+                chan_writec(cout, CMPR_NEW_LINE);
+                cmpr_start_line(p);
+                break;
+            default:
+                enc = cmpr_enc(p, raw);
+                if (enc == CMPR_ESCAPE) { 
+                    chan_writec(cout, CMPR_ESCAPE);
+                }
+                chan_writec(cout, enc);
+                break;
+        }
+    }
+}
+
+void cmpr_decoder(chanend cin, chanend cout) {
+    cmpr c;
+    cmpr *p = cmpr_init(&c, VID_WIDTH, VID_HEIGHT);
+    int raw;
+    char enc;
+
+    for (;;) {
+        enc = chan_readc(cin);
+        if (enc == CMPR_ESCAPE) {
+            enc = chan_readc(cin);
+            switch (enc) {
+            case CMPR_NEW_FRAME:
+                chan_writei(cout, VID_NEW_FRAME);
+                cmpr_start_frame(p);
+                continue;
+            case CMPR_NEW_LINE:
+                chan_writei(cout, VID_NEW_LINE);
+                cmpr_start_line(p);
+                continue;
+            }
+        }
+
+        raw = cmpr_dec(p, enc);
+        chan_writei(cout, raw);
+    }
+}
+
+
+inline void cmpr3_enc_push(cmpr3_ref ref, int raw);
+inline void cmpr3_enc_finish_line(cmpr3_ref ref);
+inline int cmpr3_enc_pull(cmpr3_ref ref, char *enc);
+inline void cmpr3_enc_finish_fame(cmpr3_ref ref);
 
 
