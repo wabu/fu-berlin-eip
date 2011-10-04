@@ -8,6 +8,5 @@ SRC = compress udp
 
 USE = codec board/common board/compat board/net board/cam board/chksm
 
-include ${ROOT}/config-xmos.mk
 include ${ROOT}/mk/use.mk
-include ${ROOT}/mk/rules.mk
+include ${ROOT}/mk/xmos.mk

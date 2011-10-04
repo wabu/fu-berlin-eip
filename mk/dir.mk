@@ -1,5 +1,4 @@
 include $(ROOT)/mk/common.mk
-include $(ROOT)/mk/tar.mk
 
 MKSUBDIR = \
 	for i in $$dirs; do \
@@ -11,9 +10,6 @@ MKSUBDIR = \
 		fi; \
 	done
 
-tar-self: tar-dirs
-tar-dirs:
-	dirs="$(SUBS)"; targ=tar-self; $(MKSUBDIR)
 all:
 	dirs="$(SUBS)"; targ=all; $(MKSUBDIR)
 test:
