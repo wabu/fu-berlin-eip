@@ -39,26 +39,27 @@ void receiver() {
 	unsigned char type, line;
 	unsigned short seq;
 
-	int size = recv(sock, buff, sizeof(buff), 0);
+	int size;
+	while ((size = recv(sock, buff, sizeof(buff), MSG_DONTWAIT)) > 0) {
+		type = buff[0];
+		// XXX check endian
+		seq = buff[1] << 8 | buff[2];
+		line = buff[3];
 
-	type = buff[0];
-	// XXX check endian
-	seq = buff[1] << 8 | buff[2];
-	line = buff[3];
+		switch (type) {
+		case 1: // raw
+			setLine(line, buff+4, size-4);
+			break;
+		case 2: // cmpr
+			break;
+		default:
+			break;
+		}
 
-	switch (type) {
-	case 1: // raw
-		setLine(line, buff+4, size-4);
-		break;
-	case 2: // cmpr
-		break;
-	default:
-		break;
+		// XXX do on end of frame
+		if (line == h-1)
+			updateTexture();
 	}
-
-	// XXX do on end of frame
-	if (line == h-1)
-		updateTexture();
 }
 
 void init_udp(int port) {
