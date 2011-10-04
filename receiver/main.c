@@ -27,17 +27,38 @@ void setPixel(int x, int y, char val) {
 		data[(y*w+x)*3+c] = val;
 	}
 }
+void setLine(int y, char *c, int s) {
+	for (int x=0; x<s; x++)
+		setPixel(x, y, *(c++));
+}
 
 int sock;
 char buff[3000];
 
 void receiver() {
-	recv(sock, buff, sizeof(buff), 0);
+	unsigned char type, line;
+	unsigned short seq;
 
-	// TODO:
-	// parse buffer
-	// use something line setPixel
-	// when frame finished, updateTexture and call glutPostRedisplay()
+	int size = recv(sock, buff, sizeof(buff), 0);
+
+	type = buff[0];
+	// XXX check endian
+	seq = buff[1] << 8 | buff[2];
+	line = buff[3];
+
+	switch (type) {
+	case 1: // raw
+		setLine(line, buff+4, size-4);
+		break;
+	case 2: // cmpr
+		break;
+	default:
+		break;
+	}
+
+	// XXX do on end of frame
+	if (line == h-1)
+		updateTexture();
 }
 
 void init_udp(int port) {
@@ -86,6 +107,8 @@ void init_gl(){
 }
 
 int main(int argc, char** argv){
+	w=160; h=120;
+
         glutInit(&argc,argv); 
         glutInitDisplayMode (GLUT_DOUBLE | GLUT_RGB);
         glutCreateWindow("simple");
