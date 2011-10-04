@@ -9,8 +9,9 @@
 
 #include "udp.h"
 #include "netconf.h"
+#include "video.h"
 
-unsigned char udpTxBuf[UDP_PACKET_LENGTH];
+unsigned char udpTxBuf[UDP_RAW_PACKET_LENGTH];
 
 void udpConnect(chanend tx) {
 
@@ -56,7 +57,7 @@ void setIPCheckSum(unsigned char buff[]) {
 
 }
 
-void udpBuildPacket(unsigned char txbuf[]) {
+void udpBuildPacket(unsigned char txbuf[], unsigned short udp_payload) {
 
 	// Ethernet Header
 	// Ziel MAC (6Bytes)
@@ -82,8 +83,8 @@ void udpBuildPacket(unsigned char txbuf[]) {
 	// Type Of Service (0 - Normal) (1 Byte)
 	txbuf[15] = 0x00;
 	// Total Length = Länge IP Header + UDP Header + UDP_DATA_LENGTH = 20 + 8 + UDP Daten
-	txbuf[16] = (UDP_DATA_LENGTH + 28) >> 8;
-	txbuf[17] = (UDP_DATA_LENGTH + 28) & 0xFF;
+	txbuf[16] = (udp_payload + 28) >> 8;
+	txbuf[17] = (udp_payload + 28) & 0xFF;
 	// Identification (2 Bytes) -Irgendeine Nummer
 	txbuf[18] = 0x00;
 	txbuf[19] = 0x40;
@@ -115,13 +116,13 @@ void udpBuildPacket(unsigned char txbuf[]) {
 	txbuf[36] = UDP_DES_PORT >> 8;
 	txbuf[37] = (UDP_DES_PORT & 0xFF);
 	// Länge = Header + Daten = 8 + UDP_DATA_LENGTH = 1290 (2 Bytes)
-	txbuf[38] = (UDP_DATA_LENGTH + 8) >> 8;
-	txbuf[39] = (UDP_DATA_LENGTH + 8) & 0xFF;
+	txbuf[38] = (udp_payload + 8) >> 8;
+	txbuf[39] = (udp_payload + 8) & 0xFF;
 	// Prüfsumme -> 0x0000 (Disabled) (2 Bytes)
 	txbuf[40] = 0x00;
 	txbuf[41] = 0x00;
 	// Daten löschen
-	for (int i = 0; i < UDP_DATA_LENGTH; i++)
+	for (int i = 0; i < udp_payload; i++)
 		txbuf[42 + i] = 0;
 
 
@@ -143,45 +144,39 @@ void udpCamTransmitter(chanend tx, chanend rx, streaming chanend cin)
 {
     unsigned short frame = 0;
 	unsigned char line = 0;
-	unsigned int off = 0;
+	unsigned char off = 0;
 	unsigned int data;
+    vid_init(cin);
 
 	udpConnect(tx);
-	udpBuildPacket(udpTxBuf);
+	udpBuildPacket(udpTxBuf, UDP_RAW_PAYLOAD_LENGTH);
     udpTxBuf[42] = UDP_DATA_TYPE_RAW;
 
 	set_thread_fast_mode_on();
 
-	while (1) {
-    	cin :> data;
-    	if (data == 0xFEFEFEFE)
-    	{
-            printf("DBG frame\n");
-            udpTxBuf[43] = frame & 0xFF;
-            udpTxBuf[44] = frame >> 8;
-            frame++;
-    		line = 0;
-    	}
-    	else if (data == 0xFFFFFFFF)
-    	{
-            printf("DBG new line\n");
-            // if this is the first line of a new frame, there is nothing
-            // to transmit. Proceed with next pixels
-            if  (line++ == 0) continue;
-    		udpTxBuf[45] = line;
-            printf("DBG send RAW...\n");
-            mac_tx(tx, (udpTxBuf, unsigned int[]), UDP_PACKET_LENGTH, ETH_BROADCAST);
-            printf("send RAW [f=%d,l=%d,o=%d]!?\n", frame, line, off*4);
-  			off = 0;
-   		} else {
-            if (11+off >= UDP_PACKET_LENGTH) {
-                printf("EE packet length exceided");
-                continue;
+
+    vid_with_frames(cin) {
+        udpTxBuf[43] = frame >> 8;
+        udpTxBuf[44] = frame & 0xFF;
+        line = 0;
+
+        vid_with_lines(cin) {
+            vid_with_ints(data, cin) {
+                if ((52 + off*4) > UDP_RAW_PACKET_LENGTH) {
+                    printf("EE packet length exceeded\n");
+                    continue;
+                }
+                // start line data at byte 49
+                (udpTxBuf, unsigned int[]) [12+off] = data;
+                off++;
             }
-            printf("DBG read: %x ", data);
-            (udpTxBuf, unsigned int[]) [11+off] = data;
-            printf("and written\n");
-            off++;
+    		udpTxBuf[45] = line;
+            mac_tx(tx, (udpTxBuf, unsigned int[]), UDP_RAW_PACKET_LENGTH, ETH_BROADCAST);
+            printf("INFO send RAW [f=%d,l=%d,o=%d]!?\n", frame, line, off*4);
+  			off = 0;
+            line++;
         }
-	}
+        frame++;
+    }
 }
+
