@@ -23,6 +23,10 @@ $(LIB:=.a): $(SRC:=.o) $(BIN:=.o)
 	echo "AR $@"
 	$(AR) $@ $(SRC:=.o) $(BIN:=.o)
 
+$(CLEAN):
+	echo "RM $(@:.clean=)"
+	rm -f $(@:.clean=)
+
 all: $(BIN) $(SHR:=.so) $(LIB:=.a)
 clean: $(CLEAN)
 

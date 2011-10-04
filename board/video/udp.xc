@@ -1,66 +1,22 @@
 #include <print.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <cam.h>
 #include <delays.h>
 #include <ethernet_tx_client.h>
 #include <ethernet_rx_client.h>
+#include <mii.h>
 
 #include "udp.h"
 #include "netconf.h"
 
-unsigned int udpTxBuf[380];
-
-void set_filter(chanend tx, chanend rx, const unsigned char own_mac_addr[6]) {
-	struct mac_filter_t f;
-
-	// ARP
-	f.opcode = OPCODE_AND;
-	for (int i = 0; i < 6; i++) {
-		f.dmac_msk[i] = 0xFF;
-		f.dmac_val[i] = 0xFF;
-		f.vlan_msk[i] = 0;
-	}
-	f.vlan_val[0] = 0x08;
-	f.vlan_val[1] = 0x06;
-	f.vlan_msk[0] = 0xFF;
-	f.vlan_msk[1] = 0xFF;
-	if (mac_set_filter(rx, 0, f) == -1) {
-		printstr("Filter configuration failed (1)\n");
-		exit(1);
-	}
-
-	// IP (ICMP/UDP)
-	f.opcode = OPCODE_AND;
-	for (int i = 0; i < 6; i++) {
-		f.dmac_msk[i] = 0xFF;
-		f.dmac_val[i] = own_mac_addr[i];
-		f.vlan_msk[i] = 0;
-	}
-	f.vlan_val[0] = 0x08;
-	f.vlan_val[1] = 0x00;
-	f.vlan_msk[0] = 0xFF;
-	f.vlan_msk[1] = 0xFF;
-	if (mac_set_filter(rx, 1, f) == -1) {
-		printstr("Filter configuration failed (2)\n");
-		exit(1);
-	}
-
-	printstr("Filter configured\n");
-}
+unsigned char udpTxBuf[UDP_PACKET_LENGTH];
 
 void udpConnect(chanend tx) {
 
 	unsigned char own_mac_addr[6];
 
-	own_mac_addr[0] = MAC_SRC_0;
-	own_mac_addr[1] = MAC_SRC_1;
-	own_mac_addr[2] = MAC_SRC_2;
-	own_mac_addr[3] = MAC_SRC_3;
-	own_mac_addr[4] = MAC_SRC_4;
-	own_mac_addr[5] = MAC_SRC_5;
-
 	printstr("Connecting...\n");
-
 	{
 		timer tmr;
 		unsigned t;
@@ -71,7 +27,6 @@ void udpConnect(chanend tx) {
 		printstr("Get MAC address failed\n");
 		exit(1);
 	}
-
 	printstr("Ethernet initialised\n");
 }
 
@@ -98,22 +53,6 @@ void setIPCheckSum(unsigned char buff[]) {
 
 	buff[24] = sum >> 8;
 	buff[25] = sum;
-
-}
-
-void setUDPData(unsigned char txbuf[], unsigned short lineNum,
-		unsigned char data[]) {
-	txbuf[42] = lineNum;
-	txbuf[43] = (lineNum >> 8);
-
-	//txbuf[19] = lineNum;
-	//txbuf[18] = (lineNum >> 8);
-
-
-	for (int i = 0; i < 1280; i++)
-		txbuf[44 + i] = data[i];
-
-	//setIPCheckSum(txbuf);
 
 }
 
@@ -185,57 +124,58 @@ void udpBuildPacket(unsigned char txbuf[]) {
 	for (int i = 0; i < UDP_DATA_LENGTH; i++)
 		txbuf[42 + i] = 0;
 
-	setIPCheckSum(txbuf);
+	// setIPCheckSum(txbuf);
 
 }
-#pragma unsafe arrays
-void udpTransmitter(chanend tx, chanend rx, streaming chanend data1, streaming chanend data2)
+
+
+void udpCmprTransmitter(chanend tx, chanend rx, streaming chanend cin) {
+    unsigned char cmprData;
+
+    udpConnect(tx);
+
+    while(1) {
+        cin :> cmprData;
+        printf("[data=%x]\n", cmprData);
+    }
+}
+
+void udpCamTransmitter(chanend tx, chanend rx, streaming chanend cin)
 {
-	int y = 0;
-	int i = 0;
-	unsigned int t = 0;
+	int line = 0;
+	unsigned int off = 0;
 	unsigned int data;
-	int pUdpBuff = 11;
+
 	udpConnect(tx);
-	//set_filter(tx, rx, own_mac_addr);
-	udpBuildPacket((udpTxBuf, unsigned char[]));
+	udpBuildPacket(udpTxBuf);
 
 	set_thread_fast_mode_on();
-	while (1)
-	{
-		select
-		{
-			case data1 :> udpTxBuf[pUdpBuff++]:
-				break;
-			case data2 :> data:
-				if (data == 0xFEFEFEFE)
-				{
-					i = 1;
-				}
-				else if (data == 0xFFFFFFFF)
-				{
-					(udpTxBuf, unsigned short[]) [21] = 0xFFFF;
-					(udpTxBuf, unsigned short[]) [22] = t;
-					mac_tx(tx, udpTxBuf, UDP_PACKET_LENGTH, ETH_BROADCAST);
-					i = 0;
-					t = 0;
-				}
-				else if (i == 1)
-				{
-					udpTxBuf[12+t] = data;
-					t++;
-				}
-				break;
-			default:
-				if ( pUdpBuff == (CAM_PIXEL_WIDTH + 11) )
-				{
-					pUdpBuff = 11;
-					(udpTxBuf, unsigned short[]) [21] = y++;
-					mac_tx(tx, udpTxBuf, UDP_PACKET_LENGTH, ETH_BROADCAST);
-					if (y == CAM_PIXEL_HEIGHT)
-						y = 0;
-				}
-			break;
-		}
+
+	while (1) {
+    	cin :> data;
+        printf("[data=%x]\n", data);
+    	if (data == 0xFEFEFEFE)
+    	{
+    		line = 0;
+            off = 0;
+    	}
+    	else if (data == 0xFFFFFFFF)
+    	{
+            // if this is the first line of a new frame, there is nothing
+            // to transmit. Proceed with next pixels
+            if  (line++ == 0) continue;
+    		(udpTxBuf, unsigned short[]) [21] = line;
+
+            mac_tx(tx, (udpTxBuf, unsigned int[]), UDP_PACKET_LENGTH, ETH_BROADCAST);
+            printf("send [lines=%d,off=%d]!?\n---\n", line, off*4);
+  			off = 0;
+   		} else {
+            if (11+off >= UDP_PACKET_LENGTH) {
+                printf("EE packet length exceided");
+                continue;
+            }
+            (udpTxBuf, unsigned int[]) [11+off] = data;
+            off++;
+        }
 	}
 }

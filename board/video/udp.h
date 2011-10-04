@@ -11,10 +11,10 @@
 // UDPHeader (8 Bytes) + UDP_DATA_LENGTH
 #define UDP_PACKET_LENGTH (42 + UDP_DATA_LENGTH)
 
-extern unsigned int udpTxBuf[380];
+extern unsigned char udpTxBuf[UDP_PACKET_LENGTH];
 
-void setUDPData(unsigned char txbuf[], unsigned short lineNum, unsigned char data[]);
 void udpBuildPacket(unsigned char txbuf[]);
-void udpTransmitter(chanend tx, chanend rx, streaming chanend data1, streaming chanend data2);
+void udpCamTransmitter(chanend tx, chanend rx, streaming chanend cin);
+void udpCmprTransmitter(chanend tx, chanend rx, streaming chanend cin);
 void udpConnect(chanend tx);
 #endif

@@ -1,5 +1,6 @@
 #include <platform.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #include <xs1.h>
 #include <xclib.h>
@@ -14,6 +15,7 @@
 #include <config.h>
 #include "compress.h"
 #include "netconf.h"
+#include "test.h"
 #include "udp.h"
 
 mii_interface_t mii = {
@@ -28,7 +30,6 @@ mii_interface_t mii = {
 		XS1_PORT_1I,
 		XS1_PORT_4E
 };
-
 out port p_mii_resetn = XS1_PORT_1J;
 smi_interface_t smi = {XS1_PORT_1H, XS1_PORT_1G, 0};
 
@@ -41,12 +42,12 @@ int main()
     int w=VID_WIDTH;
     int h=VID_HEIGHT;
 
-	chan rx[1], tx[1];
+	chan rx[2], tx[2];
 	streaming chan camData;
-	streaming chan resData1;
-	streaming chan udpData1;
-	streaming chan udpData3;
+	streaming chan cmprData;
+    streaming chan udpData;
     
+    unsigned char x;
 
 	int mac_address[2];
 
@@ -66,12 +67,18 @@ int main()
 	cam_WriteRegValue(0x74, 0x40);
 	// IntegrationTime LOW
 	cam_WriteRegValue(0x75, 0x00);
+    tst_setup(w,h);
 	par
 	{
-		ethernet_server(mii, portClk, mac_address, rx, 1, tx, 1, null,null);
+		ethernet_server(mii, portClk, mac_address, rx, 2, tx, 2, null,null);
+		cmpr_encoder_with_bypass(camData, udpData, cmprData, w, h);
+        udpCamTransmitter(tx[0], rx[0], udpData);
+        udpCmprTransmitter(tx[1], rx[1], cmprData);
+        // tst_run_debug_video(camData);
+	    // cmpr_decoder(cmprData, output, w,h);
+        // tst_run_debug_output(camData);
+        // tst_run_frame_statistics(output,w,h);
 		cam_DataCapture(camData);
-		cmpr3_encoder(camData, udpData1, w, h);
-		udpTransmitter(tx[0], rx[0], udpData1, udpData3);
 	}
 
 	return 0;

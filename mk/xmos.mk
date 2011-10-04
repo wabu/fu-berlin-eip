@@ -1,7 +1,7 @@
 .SUFFIXES: .a .so .c .xc .h .o .O .install .inhead .inlib .uninstall .unhead .unlib
 
 INFIX=.x
-CLEAN += $(BIN:=$(INFIX).xe.clean) $(BIN:=$(INFIX).o.clean) $(LIB:=$(INFIX).a.clean) $(SHR:=$(INFIX).so.clean) $(SRC:=$(INFIX).o.clean)
+CLEAN_X += $(BIN:=$(INFIX).xe.clean) $(BIN:=$(INFIX).o.clean) $(LIB:=$(INFIX).a.clean) $(SHR:=$(INFIX).so.clean) $(SRC:=$(INFIX).o.clean)
 
 # compile c files
 %$(INFIX).o:	%.c  $(INC:=.h) $(HDR:=.h)
@@ -28,9 +28,12 @@ $(BIN:=.xe): $(SRC:=$(INFIX).o) $(BIN:=$(INFIX).o)
 $(LIB:=$(INFIX).a): $(SRC:=$(INFIX).o) $(BIN:=$(INFIX).o)
 	echo "AR $@"
 	$(XMOS_AR) $@ $(SRC:=$(INFIX).o) $(BIN:=$(INFIX).o)
+$(CLEAN_X):
+	echo "RM $(@:.clean=)"
+	rm -f $(@:.clean=)
 
 all: $(BIN:=$(BINSUFFIX)) $(SHR:=$(INFIX).so) $(LIB:=$(INFIX).a)
-clean: $(CLEAN)
+clean: $(CLEAN_X)
 
 install: $(BININSTALL) $(LIBINSTALL) $(SHRINSTALL) $(INCINSTALL) $(RESINSTALL)
 uninstall: $(BINUNINSTALL) $(LIBUNINSTALL) $(INCUNINSTALL) $(RESUNINSTALL)

@@ -12,8 +12,8 @@ INCARGS += -I/usr/include
 LIBARGS += -L/usr/lib
 
 # Flags
-CFLAGS += -std=c99 -fms-extensions -Wall -Os ${INCARGS}
-LDFLAGS += ${LIBARGS}
+CFLAGS += -std=c99 -Os -fms-extensions -Wall $(INCARGS)
+LDFLAGS += $(LIBARGS)
 
 # Compiler
 CC = gcc -c
@@ -30,7 +30,7 @@ XMOS_LIBARGS +=
 XMOS_BINSUFFIX = .xe
 
 # Flags
-TARGET_BOARD = -target=XK-1
+TARGET_BOARD = ${ROOT}/xViMo-L1C.xn
 XMOS_CFLAGS += -Os -fms-extensions -Wall $(TARGET_BOARD) $(XMOS_INCARGS)
 XMOS_XCCFLAGS += -Os -Wall $(TARGET_BOARD) $(XMOS_INCARGS)
 XMOS_LDFLAGS += $(TARGET_BOARD) $(XMOS_LIBARGS)

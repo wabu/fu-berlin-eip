@@ -4,11 +4,11 @@
  *  Created on: 11.02.2011
  *      Author: Michael
  */
-#include <xs1.h>
+#include <xclib.h>
+#include <platform.h>
 #include "cam.h"
 #include "i2c.h"
-#include "delays.h"
-#include <xclib.h>
+#include <delays.h>
 
 #define DATA_TIMER_DELAY (CAM_FREQ_DIV*8)
 
@@ -105,15 +105,16 @@ void cam_DataCapture(streaming chanend dataOut) {
 		cam_port when pinsneq(x) :> x;
 		if (x & VSYNC_MASK)
 		{
+            dataOut <: 0xFEFEFEFE;
 			for (i = (CAM_PIXEL_HEIGHT + 1); --i != 0;)
 			{
-
+                dataOut <: 0xFFFFFFFF;
 				// j = Anzahl der ankommenden Y's pro Zeile
 				j = CAM_PIXEL_WIDTH;
 				do
 				{
 					cam_port when pinsneq(y)  :> y @ c;
-				}while( !(y & HSYNC_MASK)  );
+				} while( !(y & HSYNC_MASK)  );
 
 				do
 				{
@@ -121,7 +122,7 @@ void cam_DataCapture(streaming chanend dataOut) {
 					c += DATA_TIMER_DELAY;
 					cam_port @ c :> d;
 					dataOut <: d;
-				}while (--j);
+				} while (--j);
 
 				do
 				{
@@ -130,5 +131,4 @@ void cam_DataCapture(streaming chanend dataOut) {
 			}
 		}
 	}
-
 }

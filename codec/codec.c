@@ -432,6 +432,9 @@ char cmpr_enc(cmpr *p, int raw) {
 
     for (int valid=32, pixel = (raw >> (valid-=8)) & 0xff;
              valid>=0; pixel = (raw >> (valid-=8)) & 0xff) {
+        if (p->x >= p->w) {
+            exit(100);//  cmpr_start_line(p);
+        }
 
         out<<= 2;
         out |= cmpr_enc_pixel(p, pixel);
@@ -446,6 +449,9 @@ int cmpr_dec(cmpr *p, char enc) {
 
     for (int valid= 8, ch = (enc >> (valid-=2));
              valid>=0; ch = (enc >> (valid-=2))) {
+        if (p->x >= p->w) {
+            exit(100); // cmpr_start_line(p);
+        }
         out <<= 8;
         out |= cmpr_dec_pixel(p, (ch&CMPR_D_BIT_MASK)>>1, ch&CMPR_C_BIT_MASK);
 
