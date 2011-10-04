@@ -2,6 +2,12 @@
  *  This program draws a white rectangle on a black background.
  */
 
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+
 #include <GL/glut.h>
 
 unsigned int w,h;
@@ -22,6 +28,29 @@ void setPixel(int x, int y, char val) {
 	}
 }
 
+int sock;
+char buff[3000];
+
+void receiver() {
+	recv(sock, buff, sizeof(buff), 0);
+
+	// TODO:
+	// parse buffer
+	// use something line setPixel
+	// when frame finished, updateTexture and call glutPostRedisplay()
+}
+
+void init_udp(int port) {
+	struct sockaddr_in addr;
+
+	sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	memset(&addr, 0, sizeof(addr));
+	addr.sin_family = AF_INET;
+	addr.sin_port = port;
+	addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	bind(sock, (struct sockaddr*)&addr, sizeof(addr));
+}
+
 void display(void){
         glClear(GL_COLOR_BUFFER_BIT);
         glBegin(GL_POLYGON);
@@ -39,7 +68,7 @@ void display(void){
         glutSwapBuffers();
 }
 
-void init(){
+void init_gl(){
 	glClearColor (0.0, 0.0, 0.0, 0.0);
 	glColor3f(0.5, 0.5, 0.5);
 
@@ -61,7 +90,10 @@ int main(int argc, char** argv){
         glutInitDisplayMode (GLUT_DOUBLE | GLUT_RGB);
         glutCreateWindow("simple");
         glutDisplayFunc(display);
-        init();
+	glutIdleFunc(receiver);
+
+        init_gl();
+	init_udp(12345);
 
         glutMainLoop();
 
