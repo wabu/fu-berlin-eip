@@ -12,6 +12,7 @@
 #include "video.h"
 
 unsigned char udpTxBuf[UDP_RAW_PACKET_LENGTH];
+unsigned char cmpTxBuf[UDP_CMP_PACKET_LENGTH];
 
 void udpConnect(chanend tx) {
 
@@ -96,8 +97,8 @@ void udpBuildPacket(unsigned char txbuf[], unsigned short udp_payload) {
 	// Folgeprotokoll (UDP = 0x11) (1 Byte)
 	txbuf[23] = 0x11;
 	// Header Checksum (2 Bytes)
-	txbuf[24] = 0xB8;
-	txbuf[25] = 0x79;
+	txbuf[24] = 0x79;
+	txbuf[25] = 0x28;
 	// Source Address
 	txbuf[26] = IP_SRC_0;
 	txbuf[27] = IP_SRC_1;
@@ -130,13 +131,26 @@ void udpBuildPacket(unsigned char txbuf[], unsigned short udp_payload) {
 
 
 void udpCmprTransmitter(chanend tx, chanend rx, streaming chanend cin) {
-    unsigned char cmprData;
+    unsigned short seq = 0;
+    unsigned short off = 0;
 
     udpConnect(tx);
-
+    udpBuildPacket(cmpTxBuf, UDP_CMP_PAYLOAD_LENGTH);
+	cmpTxBuf[24] = 0x78;
+	cmpTxBuf[25] = 0xf8;
+    cmpTxBuf[42] = UDP_DATA_TYPE_CMP;
+    // seq is implicit set to zero in initial udp packet
+    off = 45;
     while(1) {
-        cin :> cmprData;
-        printf("[data=%x]\n", cmprData);
+        
+        cin :> cmpTxBuf[off++];
+        if (off >= UDP_CMP_PACKET_LENGTH) {
+            mac_tx(tx, (cmpTxBuf, unsigned int[]), UDP_CMP_PACKET_LENGTH, ETH_BROADCAST);
+            seq++;
+            cmpTxBuf[43] = seq >> 8;
+            cmpTxBuf[44] = seq & 0xFF;
+            off = 45;
+        }
     }
 }
 
@@ -154,7 +168,6 @@ void udpCamTransmitter(chanend tx, chanend rx, streaming chanend cin)
 
 	set_thread_fast_mode_on();
 
-
     vid_with_frames(cin) {
         udpTxBuf[43] = frame >> 8;
         udpTxBuf[44] = frame & 0xFF;
@@ -162,17 +175,18 @@ void udpCamTransmitter(chanend tx, chanend rx, streaming chanend cin)
 
         vid_with_lines(cin) {
             vid_with_ints(data, cin) {
-                if ((52 + off*4) > UDP_RAW_PACKET_LENGTH) {
+                if ((52 + off) > UDP_RAW_PACKET_LENGTH) {
                     printf("EE packet length exceeded\n");
                     continue;
                 }
                 // start line data at byte 49
-                (udpTxBuf, unsigned int[]) [12+off] = data;
-                off++;
+                for (int p=3;p>=0;p--) {
+                    udpTxBuf[48+off++] = (data >> 8*p) & 0xFF;
+                }
             }
     		udpTxBuf[45] = line;
             mac_tx(tx, (udpTxBuf, unsigned int[]), UDP_RAW_PACKET_LENGTH, ETH_BROADCAST);
-            printf("INFO send RAW [f=%d,l=%d,o=%d]!?\n", frame, line, off*4);
+            //printf("INFO send RAW [f=%d,l=%d,o=%d]!?\n", frame, line, off*4);
   			off = 0;
             line++;
         }

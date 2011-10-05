@@ -29,10 +29,10 @@
  *
  * @see cmpr3_subsample_line
  */
+//#include <stdio.h>
+
 #include "config.h"
 #include "codec.h"
-
-#include <stdio.h>
 
 
 static inline int abs(int i) {

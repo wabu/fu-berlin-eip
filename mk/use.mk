@@ -23,6 +23,12 @@ $(BIN:=$(BINSUFFIX)): $(USEFILE:=$(INFIX).a)
 $(SHR:=$(INFIX).so): $(USEFILE:=$(INFIX).a)
 $(LIB:=$(INFIX).a):  $(USEFILE:=$(INFIX).a)
 
+BINSUFFIX=.xe
+INFIX=.x
+$(BIN:=$(BINSUFFIX)): $(USEFILE:=$(INFIX).a)
+$(SHR:=$(INFIX).so): $(USEFILE:=$(INFIX).a)
+$(LIB:=$(INFIX).a):  $(USEFILE:=$(INFIX).a)
+
 $(USEFILE:=$(INFIX).a): $(USEHDR:=.h)
 	echo "MK $(dir $@)"
 	(cd $(dir $@); make)

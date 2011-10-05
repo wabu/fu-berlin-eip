@@ -14,7 +14,7 @@ CLEAN_X += $(BIN:=$(INFIX).xe.clean) $(BIN:=$(INFIX).o.clean) $(LIB:=$(INFIX).a.
 	$(XMOS_XCC) $(XMOS_XCCFLAGS) -c $< -o $@
 
 # link an executable
-$(BIN:=.xe): $(SRC:=$(INFIX).o) $(BIN:=$(INFIX).o)
+$(BIN:=$(XMOS_BINSUFFIX)): $(SRC:=$(INFIX).o) $(BIN:=$(INFIX).o)
 	echo "LD $@"
 	$(XMOS_LD) $^ $(XMOS_LDFLAGS) -o $@
 
@@ -32,7 +32,7 @@ $(CLEAN_X):
 	echo "RM $(@:.clean=)"
 	rm -f $(@:.clean=)
 
-all: $(BIN:=$(BINSUFFIX)) $(SHR:=$(INFIX).so) $(LIB:=$(INFIX).a)
+all: $(BIN:=$(XMOS_BINSUFFIX)) $(SHR:=$(INFIX).so) $(LIB:=$(INFIX).a)
 clean: $(CLEAN_X)
 
 install: $(BININSTALL) $(LIBINSTALL) $(SHRINSTALL) $(INCINSTALL) $(RESINSTALL)
