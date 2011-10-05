@@ -160,12 +160,15 @@ void cmpr3_decoder(chanend cin, chanend cout, int w, int h) {
         enc = chan_readc(cin);
         switch (enc) {
         case CMPR_FRAME_SYNC:
+            //printf("\nsync");
         case CMPR_NEW_FRAME:
+            //printf("\nf");
             chan_writei(cout, VID_NEW_FRAME);
             cmpr3_start_frame(p, enc == CMPR_FRAME_SYNC);
             break;
 
         case CMPR_NEW_LINE:
+            //printf("l");
             chan_writei(cout, VID_NEW_LINE);
             cmpr3_start_line(p);
 
@@ -184,7 +187,7 @@ void cmpr3_decoder(chanend cin, chanend cout, int w, int h) {
             break;
 
         default:
-            printf("\n!! %x\n", enc);
+            printf("WARN ignoring byte %x in cmpr3 decoder\n", enc);
         }
     }
 }

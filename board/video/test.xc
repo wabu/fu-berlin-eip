@@ -76,10 +76,15 @@ int tst_setup(int w, int h) {
 }
 
 void tst_run_debug_video(streaming chanend c_in) {
+    timer t;
+    unsigned int time;
     int cnt = 0;
+
+    t :> time;
     while (1) {
-        if (cnt++%4 == 0)
+        if (cnt++%4 == 0) {
             update_frame();
+        }
 
         c_in <: VID_NEW_FRAME;
         for (int y=0; y<height; y++) {
@@ -96,6 +101,8 @@ void tst_run_debug_video(streaming chanend c_in) {
                 }
             }
         }
+        time += 5000000;
+        t when timerafter(time) :> void;
     }
 }
 

@@ -37,8 +37,8 @@ typedef struct cmpr3 {
 
     // { rle sutff
     int c_index, dir_index, dir_cnt, dir_next;
-    char enc_buff_c[VID_WIDTH/8+1];
-    char enc_buff_dir[VID_WIDTH];
+    unsigned char enc_buff_c[VID_WIDTH/8+1];
+    unsigned char enc_buff_dir[VID_WIDTH];
     // }
     
     // TODO check if 1d array is more efficient
@@ -103,14 +103,14 @@ extern inline const char *cmpr3_enc_get_dirs(cmpr3 *p, int *n);
  * @param raw   bits of 8 c-flags
  * @return      0 if all c-flags have been received, 1 otherwise
  */
-extern inline int cmpr3_dec_push_cs(cmpr3 *p, char raw);
+extern inline int cmpr3_dec_push_cs(cmpr3 *p, unsigned char raw);
 /**
  * pushes rle-encoded dir changes to decoder (8 bits)
  * @param p     pointer to cmpr3 struct
  * @param raw   an rle-encoded dir change
  * @return      0 if all dir-changes have been received, 1 otherwise
  */
-extern inline int cmpr3_dec_push_dir(cmpr3 *p, char raw);
+extern inline int cmpr3_dec_push_dir(cmpr3 *p, unsigned char raw);
 
 /**
  * pulls raw video data form decoder (4 pixels)

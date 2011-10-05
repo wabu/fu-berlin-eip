@@ -513,7 +513,7 @@ const char *cmpr3_enc_get_dirs(cmpr3 *p, int *n) {
 
 
 
-int cmpr3_dec_push_cs(cmpr3 *p, char raw) {
+int cmpr3_dec_push_cs(cmpr3 *p, unsigned char raw) {
     p->enc_buff_c[p->c_index++] = raw;
     //printf("pushed cs %x (%d)\n", raw, p->c_index);
 
@@ -524,13 +524,13 @@ int cmpr3_dec_push_cs(cmpr3 *p, char raw) {
     return 1;
 }
 
-int cmpr3_dec_push_dir(cmpr3 *p, char raw) {
+int cmpr3_dec_push_dir(cmpr3 *p, unsigned char raw) {
     p->enc_buff_dir[p->dir_index++] = raw;
     //printf("pushed dirs %x (%d)\n", raw, p->dir_index);
-    p->dir_cnt += raw >> 1;
+    p->dir_cnt += (raw >> 1);
 
     // XXX refactor dir_update out into own function
-    if (p->dir_cnt >= p->w) { // received all dir changes
+    if (p->dir_cnt > p->w) { // received all dir changes
         p->dir_index = 0;
         p->dir_cnt = p->enc_buff_dir[p->dir_index++];
         p->dir_next = p->dir_cnt==0xff ? p->dir : cmpr3_decode_dir(p->dir, p->dir_cnt & 0x1);
@@ -543,7 +543,7 @@ int cmpr3_dec_push_dir(cmpr3 *p, char raw) {
 
 int cmpr3_dec_pull(cmpr3 *p) {
     int raw;
-    char c_bits;
+    unsigned char c_bits;
     if (p->x%8 == 0) {
         c_bits = p->enc_buff_c[p->c_index] >> 4;
     } else {

@@ -19,6 +19,10 @@
 #define CMPR_NEW_FRAME  0xFD
 #define CMPR_FRAME_SYNC 0xFF
 
+#define CMPR3_PHASE_FETCH   0
+#define CMPR3_PHASE_CS      1
+#define CMPR3_PHASE_DIR     2
+
 #include <codec.h>
 
 unsigned int w,h;
@@ -28,6 +32,7 @@ int texture[1];
 
 void updateTexture() {
     printf("updateing texture %x->%x\n", data, texture[0]);
+    
         glTexCoord2f(0.0,1.0);
 
 	glTexImage2D(GL_TEXTURE_2D, 0, 3,
@@ -52,6 +57,8 @@ unsigned char escFlag = 0;
 unsigned char in;
 int synced = 0;
 cmpr p;
+cmpr3 p3;
+unsigned char cmpr3_phase = CMPR3_PHASE_FETCH;
 
 int cmpr_x=0, cmpr_y=0;
 
@@ -102,7 +109,61 @@ void decompress(unsigned char *buf, int size) {
         }
     }
 }
-
+void decompress3(unsigned char* buf, int size) {
+    while (size > 0) {
+        in = *buf;
+        buf++; size--;
+        // handle escapable symbols
+        if (!synced) cmpr3_phase = CMPR3_PHASE_FETCH;
+        switch (cmpr3_phase) {
+        case CMPR3_PHASE_FETCH:
+            switch (in) {
+            case CMPR_FRAME_SYNC:
+                synced = 1;
+            case CMPR_NEW_FRAME:
+                //printf("processing new frame\n");
+                cmpr_y=0;
+                if (synced) {
+                    cmpr3_start_frame(&p3, in == CMPR_FRAME_SYNC);
+                    updateTexture();
+                }
+                break;
+            case CMPR_NEW_LINE:
+                //printf("processing new line\n");
+                cmpr_y++;
+                cmpr_x=0;
+                if (synced) {
+                    cmpr3_start_line(&p3);
+                    cmpr3_phase = CMPR3_PHASE_CS;
+                }
+                break;
+            default: 
+                printf("WARN %x\n", in);
+                break;
+            }
+            break;
+        case CMPR3_PHASE_CS:
+            //printf("INFO cs [%x]\n",in);
+            if( !cmpr3_dec_push_cs(&p3, in) ) 
+                cmpr3_phase = CMPR3_PHASE_DIR;
+            break;
+        case CMPR3_PHASE_DIR:
+            //printf("INFO dir [%x => %d]\n",in, p3.dir_cnt);
+            if( !cmpr3_dec_push_dir(&p3, in)) {
+                while (p3.x < p3.w) {
+                    int raw = cmpr3_dec_pull(&p3);
+                    for (int i=3; i>=0; i--) {
+                        //printf("processing pixel (%d,%d)\n", cmpr_x, cmpr_y);
+                        setPixel(cmpr_x++,cmpr_y, (raw>>i*8)&0xff);
+                    }
+                }
+                cmpr3_phase = CMPR3_PHASE_FETCH;
+            }
+            break;
+        default: break;
+        }
+    }
+}
 void receiver() {
 	unsigned char type, raw_line;
 
@@ -126,7 +187,7 @@ void receiver() {
             }
             cmpr_next = cmpr_seq+1;
             //printf("received compression unit %d\n", cmpr_seq);
-			decompress(buff+3, size-3);
+			decompress3(buff+3, size-3);
 			break;
 		default:
 			break;
@@ -151,6 +212,7 @@ void init_udp(int port) {
 	bind(sock, (struct sockaddr*)&addr, sizeof(addr));
 
     cmpr_init(&p, VID_WIDTH, VID_HEIGHT);
+    cmpr3_init(&p3, VID_WIDTH, VID_HEIGHT, 4);
 
     printf("udp init done\n");
 }
