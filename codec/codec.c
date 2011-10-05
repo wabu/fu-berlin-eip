@@ -76,10 +76,15 @@ static inline void cmpr_context_load(cmpr *p, cmpr_context *x, int pixel) {
     x->c_vert = p->c_vert[p->x];
     x->c_hori = p->c_hori;
 
-    if (x->c_vert +  x->b_vert <= 0)
+    if (x->c_vert +  x->b_vert < 0)
         x->c_vert = -x->b_vert;
-    if (x->c_hori +  x->b_hori <= 0)
+    if (x->c_hori +  x->b_hori < 0)
         x->c_hori = -x->b_hori;
+
+    if (x->c_vert + x->b_vert > 255)
+        x->c_vert = 255 - x->b_vert;
+    if (x->c_hori + x->b_hori > 255)
+        x->c_hori = 255 - x->b_hori;
 
     x->d_hori = x->b_hori + x->c_hori - pixel;
     x->d_vert = x->b_vert + x->c_vert - pixel;
@@ -102,8 +107,10 @@ static inline void cmpr3_context_load(cmpr3 *p, cmpr3_context *x, int pixel) {
         x->c_prev = p->c_prev[p->sy][p->sx];
     }
 
-    if (x->c_prev +  x->b_prev <= 0)
+    if (x->c_prev +  x->b_prev < 0)
         x->c_prev = -x->b_prev;
+    if (x->c_prev + x->b_prev > 255)
+        x->c_prev = 255 - x->b_prev;
 
     x->d_prev = x->b_prev + x->c_prev - pixel;
 }
@@ -247,12 +254,12 @@ static inline char cmpr_enc_pixel(cmpr *p, int pixel) {
 
     switch (dir) {
     case VERTICAL:
-        if (abs(x.d_hori) < abs(x.d_vert)-CMPR_CHANGE_BIAS) {
+        if (abs(x.d_hori) < abs(x.d_vert)) {
             dir = HORIZONTAL;
         }
         break;
     case HORIZONTAL:
-        if (abs(x.d_vert) < abs(x.d_hori)-CMPR_CHANGE_BIAS) {
+        if (abs(x.d_vert) < abs(x.d_hori)) {
             dir = VERTICAL;
         }
         break;

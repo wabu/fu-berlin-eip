@@ -9,7 +9,7 @@ int width, height;
 int counter; 
 
 int bg = 0xAA;
-int fg = 0x11;
+int fg = 0xFC;
 
 // rect parameters;
 int rx, ry, hw, hh;
@@ -83,8 +83,8 @@ void tst_run_debug_video(streaming chanend c_in) {
     t :> time;
     while (1) {
         if (cnt++%4 == 0) {
-            update_frame();
         }
+            update_frame();
 
         c_in <: VID_NEW_FRAME;
         for (int y=0; y<height; y++) {

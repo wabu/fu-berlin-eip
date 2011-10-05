@@ -73,7 +73,7 @@ int main()
 		ethernet_server(mii, portClk, mac_address, rx, 2, tx, 2, null,null);
         //udpCamTransmitter(tx[0], rx[0], camData);
         udpCmprTransmitter(tx[1], rx[1], cmprData);
-        cmpr3_encoder(camData, cmprData, w, h);
+        cmpr_encoder(camData, cmprData, w, h);
 		//cmpr_encoder_with_bypass(camData, udpData, cmprData, w, h);
         //tst_run_debug_video(camData);
 	    //cmpr3_decoder(cmprData, udpData, w,h);

@@ -109,10 +109,13 @@ void decompress(unsigned char *buf, int size) {
         }
     }
 }
+
+int bytecount;
 void decompress3(unsigned char* buf, int size) {
     while (size > 0) {
         in = *buf;
         buf++; size--;
+        bytecount++;
         // handle escapable symbols
         if (!synced) cmpr3_phase = CMPR3_PHASE_FETCH;
         switch (cmpr3_phase) {
@@ -126,6 +129,8 @@ void decompress3(unsigned char* buf, int size) {
                 if (synced) {
                     cmpr3_start_frame(&p3, in == CMPR_FRAME_SYNC);
                     updateTexture();
+                    printf("frame needed %d bytes\n", bytecount);
+                    bytecount = 0;
                 }
                 break;
             case CMPR_NEW_LINE:
@@ -187,7 +192,7 @@ void receiver() {
             }
             cmpr_next = cmpr_seq+1;
             //printf("received compression unit %d\n", cmpr_seq);
-			decompress3(buff+3, size-3);
+			decompress(buff+3, size-3);
 			break;
 		default:
 			break;
