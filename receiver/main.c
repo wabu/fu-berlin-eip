@@ -1,5 +1,9 @@
-/*
- *  This program draws a white rectangle on a black background.
+/**
+ * @file
+ * 
+ * this is a simple gl/glut video renderer,
+ * which is used to decode and output the video stream
+ * received over network by the xmos chip
  */
 
 #include <string.h>
@@ -35,19 +39,20 @@ void updateTexture() {
     
         glTexCoord2f(0.0,1.0);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, 3,
-	 w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+    glTexImage2D(GL_TEXTURE_2D, 0, 3,
+     w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
             glutPostRedisplay();
 }
 
 void setPixel(int x, int y, char val) {
-	for (int c=0; c<3; c++) {
-		data[(y*w+x)*3+c] = val;
-	}
+    for (int c=0; c<3; c++) {
+        data[(y*w+x)*3+c] = val;
+    }
 }
 void setLine(int y, unsigned char *c, int s) {
-	for (int x=0; x<s; x++)
-		setPixel(x, y, *(c++));
+    for (int x=0; x<s; x++) {
+        setPixel(x, y, *(c++));
+    }
 }
 
 int sock;
@@ -170,51 +175,51 @@ void decompress3(unsigned char* buf, int size) {
     }
 }
 void receiver() {
-	unsigned char type, raw_line;
+    unsigned char type, raw_line;
 
-	int size;
-	while ((size = recv(sock, buff, sizeof(buff), MSG_DONTWAIT)) > 0) {
+    int size;
+    while ((size = recv(sock, buff, sizeof(buff), MSG_DONTWAIT)) > 0) {
         //printf("recved %d\n", size);
-		type = buff[0];
+        type = buff[0];
 
-		switch (type) {
-		case 1: // raw
-		    // XXX check endian
-		    raw_seq = buff[1] << 8 | buff[2];
-		    raw_line = buff[3];
-			setLine(raw_line, buff+6, size-6);
-			break;
-		case 2: // cmpr
-		    cmpr_seq = buff[1] << 8 | buff[2];
+        switch (type) {
+        case 1: // raw
+            // XXX check endian
+            raw_seq = buff[1] << 8 | buff[2];
+            raw_line = buff[3];
+            setLine(raw_line, buff+6, size-6);
+            break;
+        case 2: // cmpr
+            cmpr_seq = buff[1] << 8 | buff[2];
             if (cmpr_seq != cmpr_next) {
                 synced = 0;
                 printf("packet lost %d -> %d\n", (int)cmpr_next, (int)cmpr_seq);
             }
             cmpr_next = cmpr_seq+1;
             //printf("received compression unit %d\n", cmpr_seq);
-			decompress(buff+3, size-3);
-			break;
-		default:
-			break;
-		}
+            decompress(buff+3, size-3);
+            break;
+        default:
+            break;
+        }
 
-		// XXX do on end of frame
-		if (raw_line == h-1) {
-			updateTexture();
+        // XXX do on end of frame
+        if (raw_line == h-1) {
+            updateTexture();
             return;
         }
-	}
+    }
 }
 
 void init_udp(int port) {
-	struct sockaddr_in addr;
+    struct sockaddr_in addr;
 
-	sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	memset(&addr, 0, sizeof(addr));
-	addr.sin_family = AF_INET;
-	addr.sin_port = port;
-	addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	bind(sock, (struct sockaddr*)&addr, sizeof(addr));
+    sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = port;
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    bind(sock, (struct sockaddr*)&addr, sizeof(addr));
 
     cmpr_init(&p, VID_WIDTH, VID_HEIGHT);
     cmpr3_init(&p3, VID_WIDTH, VID_HEIGHT, 4);
@@ -223,54 +228,54 @@ void init_udp(int port) {
 }
 
 void display(void){
-        glClear(GL_COLOR_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT);
         glBegin(GL_POLYGON);
-		glTexCoord2f(0.0f, 1.0f);
-                glVertex2f(-1, -1);
-		glTexCoord2f(0.0f, 0.0f);
-                glVertex2f(-1, 1);
-		glTexCoord2f(1.0f, 0.0f);
-                glVertex2f(1, 1);
-		glTexCoord2f(1.0f, 1.0f);
-                glVertex2f(1, -1);
-        glEnd();
+        glTexCoord2f(0.0f, 1.0f);
+        glVertex2f(-1, -1);
+        glTexCoord2f(0.0f, 0.0f);
+        glVertex2f(-1, 1);
+        glTexCoord2f(1.0f, 0.0f);
+        glVertex2f(1, 1);
+        glTexCoord2f(1.0f, 1.0f);
+        glVertex2f(1, -1);
+    glEnd();
 
-        glFlush(); 
-        glutSwapBuffers();
+    glFlush(); 
+    glutSwapBuffers();
 }
 
 void init_gl(){
     glEnable(GL_TEXTURE_2D);
-	glClearColor (0.0, 0.0, 0.0, 0.0);
-	glColor3f(0.5, 0.5, 0.5);
+    glClearColor (0.0, 0.0, 0.0, 0.0);
+    glColor3f(0.5, 0.5, 0.5);
 
-        glMatrixMode (GL_PROJECTION);
-        glLoadIdentity ();
-        glOrtho(-1.0, 1.0, -1.0, 1.0, -1.0, 1.0); 
+    glMatrixMode (GL_PROJECTION);
+    glLoadIdentity ();
+    glOrtho(-1.0, 1.0, -1.0, 1.0, -1.0, 1.0); 
 
-        glGenTextures(1, (GLuint*)texture);
-        glBindTexture(GL_TEXTURE_2D, texture[0]);
-        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+    glGenTextures(1, (GLuint*)texture);
+    glBindTexture(GL_TEXTURE_2D, texture[0]);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
 
-	size = w*h*3;
-	data = malloc(size);
+    size = w*h*3;
+    data = malloc(size);
 }
 
 int main(int argc, char** argv){
-	w=160; h=120;
+    w=160; h=120;
 
-        glutInit(&argc,argv); 
-        glutInitDisplayMode (GLUT_DOUBLE | GLUT_RGB);
-        glutCreateWindow("simple");
-        glutDisplayFunc(display);
-	glutIdleFunc(receiver);
+    glutInit(&argc,argv); 
+    glutInitDisplayMode (GLUT_DOUBLE | GLUT_RGB);
+    glutCreateWindow("simple");
+    glutDisplayFunc(display);
+    glutIdleFunc(receiver);
 
-        init_gl();
-	init_udp(htons(12345));
+    init_gl();
+    init_udp(htons(12345));
 
-        glutMainLoop();
+    glutMainLoop();
 
-        return 0;
+    return 0;
 }
 
