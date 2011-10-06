@@ -59,7 +59,6 @@ void setIPCheckSum(unsigned char buff[]) {
 }
 
 void udpBuildPacket(unsigned char txbuf[], unsigned short udp_payload) {
-
 	// Ethernet Header
 	// Ziel MAC (6Bytes)
 	txbuf[0] = MAC_DES_0;
@@ -130,7 +129,7 @@ void udpBuildPacket(unsigned char txbuf[], unsigned short udp_payload) {
 }
 
 
-void udpCmprTransmitter(chanend tx, chanend rx, streaming chanend cin) {
+void udpCmprTransmitter(chanend tx, chanend rx, streaming chanend cin, int type) {
     unsigned short seq = 0;
     unsigned short off = 0;
 
@@ -138,11 +137,10 @@ void udpCmprTransmitter(chanend tx, chanend rx, streaming chanend cin) {
     udpBuildPacket(cmpTxBuf, UDP_CMP_PAYLOAD_LENGTH);
 	cmpTxBuf[24] = 0x78;
 	cmpTxBuf[25] = 0xf8;
-    cmpTxBuf[42] = UDP_DATA_TYPE_CMP;
+    cmpTxBuf[42] = type;
     // seq is implicit set to zero in initial udp packet
     off = 45;
     while(1) {
-        
         cin :> cmpTxBuf[off++];
         if (off >= UDP_CMP_PACKET_LENGTH) {
             mac_tx(tx, (cmpTxBuf, unsigned int[]), UDP_CMP_PACKET_LENGTH, ETH_BROADCAST);

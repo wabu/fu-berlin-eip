@@ -107,11 +107,6 @@ static inline void cmpr3_context_load(cmpr3 *p, cmpr3_context *x, int pixel) {
         x->c_prev = p->c_prev[p->sy][p->sx];
     }
 
-    if (x->c_prev +  x->b_prev < 0)
-        x->c_prev = -x->b_prev;
-    if (x->c_prev + x->b_prev > 255)
-        x->c_prev = 255 - x->b_prev;
-
     x->d_prev = x->b_prev + x->c_prev - pixel;
 }
 
@@ -127,6 +122,13 @@ static inline void cmpr_context_update_c(cmpr_context *x, int flag) {
     } else {
         (*c) = -(*c);
         if (abs(*c)>=CMPR_C_MIN*2) (*c)=(*c)/2;
+    }
+
+    if (x->b_val + (*c) < 0) {
+        (*c) = -x->b_val;
+    }
+    if (x->b_val + (*c) > 255) {
+        (*c) = 255 - x->b_val;
     }
 }
 /** updates the c_val in the context according to the c_flag */
@@ -439,9 +441,6 @@ char cmpr_enc(cmpr *p, int raw) {
 
     for (int valid=32, pixel = (raw >> (valid-=8)) & 0xff;
              valid>=0; pixel = (raw >> (valid-=8)) & 0xff) {
-        if (p->x >= p->w) {
-            exit(100);//  cmpr_start_line(p);
-        }
 
         out<<= 2;
         out |= cmpr_enc_pixel(p, pixel);
@@ -456,9 +455,6 @@ int cmpr_dec(cmpr *p, char enc) {
 
     for (int valid= 8, ch = (enc >> (valid-=2));
              valid>=0; ch = (enc >> (valid-=2))) {
-        if (p->x >= p->w) {
-            exit(100); // cmpr_start_line(p);
-        }
         out <<= 8;
         out |= cmpr_dec_pixel(p, (ch&CMPR_D_BIT_MASK)>>1, ch&CMPR_C_BIT_MASK);
 

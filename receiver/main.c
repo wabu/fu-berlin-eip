@@ -169,22 +169,30 @@ void decompress3(unsigned char* buf, int size) {
         }
     }
 }
+
+unsigned char type, raw_line;
+
 void receiver() {
-	unsigned char type, raw_line;
 
 	int size;
 	while ((size = recv(sock, buff, sizeof(buff), MSG_DONTWAIT)) > 0) {
         //printf("recved %d\n", size);
+        if (buff[0] != type) {
+            synced = 0;
+        }
 		type = buff[0];
 
 		switch (type) {
 		case 1: // raw
-		    // XXX check endian
 		    raw_seq = buff[1] << 8 | buff[2];
 		    raw_line = buff[3];
 			setLine(raw_line, buff+6, size-6);
+            if (raw_line == h-1) {
+                updateTexture();
+            }
 			break;
 		case 2: // cmpr
+        case 3: // cmpr3
 		    cmpr_seq = buff[1] << 8 | buff[2];
             if (cmpr_seq != cmpr_next) {
                 synced = 0;
@@ -192,17 +200,16 @@ void receiver() {
             }
             cmpr_next = cmpr_seq+1;
             //printf("received compression unit %d\n", cmpr_seq);
-			decompress(buff+3, size-3);
+            if (type == 2)
+                decompress(buff+3, size-3);
+            else
+                decompress3(buff+3, size-3);
 			break;
 		default:
 			break;
 		}
 
 		// XXX do on end of frame
-		if (raw_line == h-1) {
-			updateTexture();
-            return;
-        }
 	}
 }
 

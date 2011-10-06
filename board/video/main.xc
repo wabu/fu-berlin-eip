@@ -39,6 +39,8 @@ clock clk_smi = XS1_CLKBLK_5;
 
 int main()
 {
+    int type;
+
     int w=VID_WIDTH;
     int h=VID_HEIGHT;
 
@@ -68,19 +70,45 @@ int main()
 	// IntegrationTime LOW
 	cam_WriteRegValue(0x75, 0x00);
     tst_setup(w,h);
-	par
-	{
-		ethernet_server(mii, portClk, mac_address, rx, 2, tx, 2, null,null);
-        //udpCamTransmitter(tx[0], rx[0], camData);
-        udpCmprTransmitter(tx[1], rx[1], cmprData);
-        cmpr_encoder(camData, cmprData, w, h);
-		//cmpr_encoder_with_bypass(camData, udpData, cmprData, w, h);
-        //tst_run_debug_video(camData);
-	    //cmpr3_decoder(cmprData, udpData, w,h);
-        //tst_run_debug_output(udpData);
-        //tst_run_frame_statistics(udpData,w,h);
-		cam_DataCapture(camData);
-	}
+         
+    type = UDP_DATA_TYPE_CMPR;
+
+    switch (type) {
+    case UDP_DATA_TYPE_RAW:
+        par {
+            ethernet_server(mii, portClk, mac_address, rx, 2, tx, 2, null,null);
+
+            udpCamTransmitter(tx[0], rx[0], camData);
+            cam_DataCapture(camData);
+        }
+        break;
+    case UDP_DATA_TYPE_CMPR:
+        par
+        {
+            ethernet_server(mii, portClk, mac_address, rx, 2, tx, 2, null,null);
+
+            udpCmprTransmitter(tx[1], rx[1], cmprData, type);
+            cmpr_encoder(camData, cmprData, w, h);
+            cam_DataCapture(camData);
+            //tst_run_debug_video(camData);
+        }
+        break;
+    case UDP_DATA_TYPE_CMPR3:
+        par
+        {
+            ethernet_server(mii, portClk, mac_address, rx, 2, tx, 2, null,null);
+
+            udpCmprTransmitter(tx[1], rx[1], cmprData, type);
+            cmpr3_encoder(camData, cmprData, w, h);
+            //cam_DataCapture(camData);
+            //tst_run_debug_video(camData);
+            //tst_run_frame_statistics(udpData,w,h);
+        }
+        break;
+    }
+            //cmpr_encoder_with_bypass(camData, udpData, cmprData, w, h);
+            //cmpr3_decoder(cmprData, udpData, w,h);
+            //tst_run_debug_output(udpData);
 
 	return 0;
 }
