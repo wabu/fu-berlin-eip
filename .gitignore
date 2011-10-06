@@ -4,6 +4,10 @@
 *.swo
 *.swn
 *.a
+*.aux
+*.log
+*.dvi
 cscope.out
 .project
 .metadata/
+*.toc
