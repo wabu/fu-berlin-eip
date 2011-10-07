@@ -2,8 +2,47 @@
 \chapter{Implementierung}
 Hier die Implementierung
 
-\section{under the hood}
-welche schritte laufen in den codern
+\section{Funktionen fuer Tests und Ueberpruefungen}
+Um unsere Ansaetze und Implementation analysieren und testen zu koennen,
+haben wir Test-Funktionen fuer Videodaten, die ueber Channel transportiert
+werden geschrieben.
+
+Dies Funktionen befinden sich in \verb@board/video/test.xc@.
+
+\subsection{Generierter Videostream}
+Die Funktion \lstinline@tst_run_debug_video@ gibt an einen Channel ein Test-Video aus,
+indem sich ein Viereck ueber grauen Hintergrund bewegt.
+Die Breite und Hoehe des generierten Videos kann mit dem vorherigen Aufruf von
+\lstinline@tst_setup@ bestimmt werden. 
+
+Somit koennen Methoden schnell und leicht auf dem kleinen, einfachen
+Teststream analysieren werden.
+
+\subsection{Videodaten Ausgabe}
+Fuer erste Tests gibt die Funktion \lstinline@tst_run_debug_output@ die
+Videodaten aus einem Channel ueber den JTAG-Link in die Standardausgabe aus.
+Diese einfach und sichere Ausgabe der Videodaten reicht, um Fehler
+festzustellen.
+
+\subsection{Videodaten Analyse}
+Die Funktion \lstinline@tst_run_frame_statistics@ ueberprueft die Konsistenz des
+Videos und gibt die Frame-Rate in die Standartdausgabe aus.
+
+Syntaxfehler im Videodaten-Format und das Fehlen von Pixel oder Lines 
+werden festgestellt und Performce-Tests koennen mit dieser Funkton durchgefuerht
+werden.
+
+\subsection{Channeldaten Ausgabe}
+Zur Analyse comprimierter Video-Daten schriebt die Funktion 
+\lstinline@tst_run_dump_stream@ alle Daten eines Streams in
+Hexadecimal-Darstellung in die Standardausgabe.
+
+
+\section{Video-Kompression}
+
+
+\section{Running the combined Sutff}
+
 
 \section{basic usage}
 wie benutzen
