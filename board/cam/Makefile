@@ -2,7 +2,7 @@ ROOT = ../..
 SELF = board/cam
 NAME = cam
 
-USE = board/common
+USE = board/common videfs
 
 LIB = libcam
 INC = cam i2c

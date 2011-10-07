@@ -7,6 +7,8 @@
 #include <ethernet_rx_client.h>
 #include <mii.h>
 
+#include <config.h>
+
 #include "udp.h"
 #include "netconf.h"
 #include "video.h"

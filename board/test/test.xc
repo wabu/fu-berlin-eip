@@ -1,5 +1,6 @@
 #include "test.h"
-#include "video.h"
+#include <config.h>
+#include <video.h>
 
 #include <stdlib.h>
 #include <stdio.h>

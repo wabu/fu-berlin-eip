@@ -18,10 +18,6 @@
 #include <GL/glut.h>
 
 #include <config.h>
-#define CMPR_ESCAPE     0xFF
-#define CMPR_NEW_LINE   0xFE
-#define CMPR_NEW_FRAME  0xFD
-#define CMPR_FRAME_SYNC 0xFF
 
 #define CMPR3_PHASE_FETCH   0
 #define CMPR3_PHASE_CS      1

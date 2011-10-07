@@ -16,12 +16,12 @@ Details on the codec can be found in the comments inside "codec/codec.c"
   receiver/
   board/
     chksm/
-    video/
     compat/
     common/
     test/
     net/
     cam/
+    stream-transmitter/
   mathlab/
   mk/
 
@@ -33,7 +33,7 @@ rendering the video stream. It uses gl as an rendering backend and relies on
 glut for basic application setup.
 
 The "board/" directory contains all the code specific for the xmos board.
-The main application is inside the "video/", putting together camera,
+The main application is inside the "stream-transmitter/", putting together camera,
 compression and network code.
 
 The "mathlab/" directory contains prototypes of the compression methods
@@ -56,13 +56,13 @@ the host system with the gl and glut libraries installed.
 Edit the config.mk for your system. 
 
 To change the compression parameters and address of the receiving host, you
-have to edit the sources in "board/video/".
+have to edit the sources in "board/stream-transmitter/".
 
 === Compilation and Running it ===
 Make sure that you sourced SetEnv from the Xmos Development Tools in your shell.
 To compile the project, type xmake/make on the command line.
 
-After the build has finished, you can run the board/video/main.xe on the xmos
+After the build has finished, you can run the board/stream-transmitter/main.xe on the xmos
 chip with xrun and ./receiver/main on the host.
 
 

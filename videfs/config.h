@@ -1,15 +1,26 @@
 /** @file config.h
- * the defined values for WIDTH/HEIGHT are the maximum values allow
- * it's no problem if you use smaller pictures, it only vastes some memory
  */
 
+#ifndef VID_WIDTH
 #define VID_WIDTH     160
+#endif
+#ifndef VID_HEIGHT
 #define VID_HEIGHT    120
-#define VID_FRAMERATE  30
+#endif
+
+#define VID_FRAMERATE  20
 #define VID_REFRATE    (5*VID_FRAMERATE)
 
 #define SUB_WIDTH   (VID_WIDTH/4)
 #define SUB_HEIGHT  (VID_WIDTH/4)
+
+#define VID_NEW_FRAME 0xFEFEFEFE
+#define VID_NEW_LINE  0xFFFFFFFF
+
+#define CMPR_ESCAPE     0xFF
+#define CMPR_NEW_LINE   0xFE
+#define CMPR_NEW_FRAME  0xFD
+#define CMPR_FRAME_SYNC 0xFF
 
 #define CMPR_C_DEFAULT      32
 #define CMPR_C_MIN          2
