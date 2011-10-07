@@ -1,14 +1,37 @@
 
 \chapter{Ergebnisse}
 
-\section{Bildqualitaet}
+\section{Bildqualität}
+
+Sowohl bei 2D wie auch bei 3D Komprimierung sind die Artefakte sichtbar,
+die sich auf dem Bild befindende Objekte sind aber gut erkennbar:
+
+\subsection{2D Encoder}
+bild mit orginal und cmpr
+
+\subsection{3D Encoder}
+bild mit orginal und cmpr3 (mit und ohne bias)
+
+
+\section{Komprimierung}
+
+\begin{tabluar}{l|r}
+      & bytes/frame \\\hline
+raw   & 19200         \\
+cmpr  &  4800         \\
+cmpr3 & \aprox 3200   \\
+
 
 \section{Performance}
-        & \multicolumn{2}{|c|}{Framerate mit Test-Video}     & Frequenz mit Camera      \\
-	& mit En- und Decodierung & Encodierung und Netzwerk & Encodierung und Netzwerk \\
+
+\begin{tabluar}{l|l|l|l}
+      & \multicolumn{2}{|l|}{Framerate mit Test-Video}     & Frequenz mit Camera      \\
+      & mit En- und Decodierung & Encodierung und Netzwerk & Encodierung und Netzwerk \\
 \hline
-raw	&                         &                          &                          \\
-cmpr	&                         &                          &                          \\
-cmpr3	&                         &                          &                          \\
+raw   &                         &                          &                          \\
+cmpr  &                         &                          &                          \\
+cmpr3 &                         &                          &                          \\
+\end{tabluar}
+
 
 
