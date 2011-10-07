@@ -20,7 +20,7 @@ Um unsere Ansätze und Implementation analysieren und testen zu können,
 haben wir Test-Funktionen für Videodaten, die über Channel transportiert
 werden, geschrieben.
 
-Dies Funktionen befinden sich in \verb@board/video/test.xc@.
+Dies Funktionen befinden sich in \verb@board/test/@.
 
 \subsection{Generierter Videostream}
 Die Funktion \lstinline@tst_run_debug_video@ gibt an einen Channel ein Test-Video aus,
@@ -111,15 +111,77 @@ Bei der Decodierung werden diese mit \lstinline@cmpr3_dec_push_cs@ und
 \lstinline@cmpr3_dec_push_dir@ übergeben, woraufhin die Pixelwerte
 für eine Zeile mit \lstinline@cmpr3_dec_pull@ ausgelesen werden können.
 
+
+
 \section{Zusammensetzen und Ausführung}
 
-\subsection{Projektübersicht}
+Die Aufteilung des Projekts in Module ist in der Abbildung \ref{mod} dargestellt.
+Stream-Transmitter bzw. Receiver führen jeweils die Funktionen zusammen,
+um den Videostream zu aufzunehmen, kodieren und versenden bzw. 
+empfangen, dekodieren und darzustellen.
 
-\subsection{Board}
+\begin{verbatim}
+./
+  codec/
+  videfs/
+  receiver/
+  board/
+    chksm/
+    compat/
+    common/
+    net/
+    cam/
+    test/
+    stream-transmitter/
+  mk/
+\end{verbatim}
+<+Abbildung: Übersicht der Module+>
 
-\subsection{Benutzung von Kamera und Netzwerk}
+\verb@codec@ enthält den in C implementierten Kompressions-Algorithmus,
+in \verb@videfs@ sind Parameter für die Komprimierung und das Video festgelegt.
+Die Video-Darstellung für das Hostsystem befindet sich in \verb@receiver@.
+In dem \verb@board@ Ordner befindet sich der Quelltext spezifisch für das XMOS Board.
+
+\verb@common@, \verb@chksum@ und \verb@compat@ enthalten einfach Funktionen,
+die von anderen Modulen verwendet werden. 
+Das \verb@net@-Module enthält den ethernet Code für den XMOS Chip,
+\verb@cam@ das Kamera-Modul.
+Unsere Test-Funktionen befinden sich in \verb@test@. Zusammengesetzt
+werden dies Funktionen in dem \verb@stream-transmitter@-Modul.
 
 \subsection{Receiver}
+Der Receiver benutzt zur graphischen Darstellung \verb@gl@, 
+wobei die \verb@glut@-Bibliothek verwendet wird um ein Fenster zu öffnen.
+
+Die über einen UDP-Socket empfangenen Daten werden in der \lstinline@receiver@
+Funktion analysiert und entsprechend des Packet-Headers decodiert. 
+Sobald ein Frame abgeschlossen ist, wird die dargestellte \verb@gl@-Graphik 
+erneuert.
+
+\subsection{Benutzung von Kamera und Netzwerk}
+Wir haben den vorhanden Quelltext für Kamera und Netzwerk in dem Projekt
+verwendet. Allerdings musste dieser noch korrigiert und angepasst werden.
+
+So sendete z.B. das Kameramodul die Video-Daten nicht in dem vereinbartem Format
+über den Channel. Auch die Frequenz für das Kameramodul muss je nach
+Rechenbelastung auf dem Chip angepasst werden.
+
+Um den Video-Stream versenden zu können, benutzen wir spezielle Header in den
+UDP-Packeten. Dazu haben wir den Netzwerkcode in der \verb@udb.xc@ Datei
+entsprechend anpasst.
 
 \subsection{Kodierung wählen und Parameter anpassen}
+
+Die Art der Kodierung kann in der \verb@main.xc@ im Ordner
+\verb@board\streaming-transmitter@ angepasst werden. Da jede Kodierung
+eigene Packet-Header besitzt, kann der Receiver weiterlaufen, während sich
+die Art der Kodierung ändert.
+
+In der \verb@main.xc@ kann auch statt dem Kamerabild das Test-Video verwendet
+werden.
+
+Andere Parameter werden in der \verb@videfs/config.h@ verändert, 
+wonach sowohl Receiver wie auch Transmitter neu compiliert werden müssen.
+
+
 
