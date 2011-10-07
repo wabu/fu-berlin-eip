@@ -12,3 +12,4 @@ cscope.out
 .metadata/
 *.toc
 *.pdf
+!report.pdf

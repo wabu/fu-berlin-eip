@@ -102,8 +102,8 @@ void tst_run_debug_video(streaming chanend c_in) {
                 }
             }
         }
-        time += 5000000;
-        t when timerafter(time) :> void;
+        //time += 1000000;
+        //t when timerafter(time) :> void;
     }
 }
 

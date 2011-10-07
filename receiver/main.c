@@ -39,7 +39,7 @@ void updateTexture() {
     count++;
     time_t now = time(0);
     if (now - last >= 10) {
-        rate = count / (now-last);
+        rate = (float)count / (float)(now-last);
 
         count = 0;
         last = now;
