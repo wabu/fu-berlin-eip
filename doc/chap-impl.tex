@@ -53,7 +53,6 @@ Zur Analyse komprimierten Video-Daten schriebt die Funktion
 Hexadezimal-Darstellung in die Standardausgabe.
 
 
-
 \section{Video-Kompression}
 
 Wir haben den Kompressions-/Dekompressions-Algorithmus in C implementiert.
@@ -61,11 +60,11 @@ Wir haben den Kompressions-/Dekompressions-Algorithmus in C implementiert.
 Da dieser nun sowohl auf dem XMOS Board wie auch auf dem empfangenden Rechner 
 verwendet wird, ist somit die Konsistenz zwischen diesen Komponenten sichergestellt.
 
-Zum anderen konnten wir durch die Verwendung von C-Pointern Code sowohl zwischen 
+Zum Anderen konnten wir durch die Verwendung von C-Pointern Code sowohl zwischen 
 De- und Encoder wie auch zwischen 2D- und 3D-Komprimierung wiederverwenden,
 wodurch wir Wiederholungen im Quelltext vermeiden konnten.
 
-\subsection{Schritte}
+\subsection{Funktionsweise}
 Sowohl En- wie Decodierung für 2D und 3D haben den gleichen Aufbau.
 Die Funktionen \lstinline@cmpr_start_frame@ und \lstinline@cmpr_start_line@
 setzen die Standard-Werte als Referenz-Werte und setzen Laufvariablen zurück.
@@ -85,16 +84,16 @@ Für die Codierung jedes Pixels werden jeweils folgende Schritte durchlaufen:
 	(\lstinline@cmpr_context_store@)
 \end{itemize}
 
-Bei der Encodierung müssen die Entscheidungen zurückgegeben werden,
-bei der Decodierung werden diese Informationen benutzt, um den Pixelwert zu 
-rekonstruieren. 
+Bei der Encodierung werden getroffenen Entscheidungen kodiert und zurückgegeben,
+bei der Decodierung werden diese Informationen benutzt, um den Pixelwert zu rekonstruieren
+und zurückzugeben. 
 
 Wir verwenden RLE für die Übertragung der Richtung bei der 3D Variante,
-was zu einen weitern Verarbeitungsschritt nach abgeschlossener Zeile führt.
+was zu einen weitern Verarbeitungsschritt nach einer abgeschlossener Zeile führt.
 Auch wird hier wegen Speicherknappheit für die Referenzwerte des vorherigen Bildes
 Subsampling verwendet.
 
-\subsection{Benutzung}
+\subsection{Benutzung der Schnittstellen}
 Ein Benutzung der Kompression befindet sich z.B. in \verb@board/video/compress.c@.
 
 Nach der Initialisierung durch \lstinline@cmpr_init@ 
@@ -112,10 +111,9 @@ Bei der Decodierung werden diese mit \lstinline@cmpr3_dec_push_cs@ und
 \lstinline@cmpr3_dec_push_dir@ übergeben, woraufhin die Pixelwerte
 für eine Zeile mit \lstinline@cmpr3_dec_pull@ ausgelesen werden können.
 
-
 \section{Zusammensetzen und Ausführung}
 
-\subsection{Produktübersicht}
+\subsection{Projektübersicht}
 
 \subsection{Board}
 
