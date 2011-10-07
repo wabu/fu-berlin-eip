@@ -8,11 +8,13 @@
 
 #include <string.h>
 #include <unistd.h>
+#include <stdio.h>
+
+#include <time.h>
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <stdio.h>
-
 #include <arpa/inet.h>
 
 #include <GL/glut.h>
@@ -30,14 +32,24 @@ unsigned int size;
 unsigned char *data;
 int texture[1];
 
+int last;
+int count = 0;
+float rate;
 void updateTexture() {
-    printf("updateing texture %x->%x\n", data, texture[0]);
-    
-        glTexCoord2f(0.0,1.0);
+    count++;
+    time_t now = time(0);
+    if (now - last >= 10) {
+        rate = count / (now-last);
 
-    glTexImage2D(GL_TEXTURE_2D, 0, 3,
-     w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-            glutPostRedisplay();
+        count = 0;
+        last = now;
+    }
+    printf("frame [rate %f] [%x->%x]\n", rate, data, texture[0]);
+    
+    glTexCoord2f(0.0,1.0);
+    glTexImage2D(GL_TEXTURE_2D, 0, 3, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+    glutPostRedisplay();
+ 
 }
 
 void setPixel(int x, int y, char val) {
@@ -273,6 +285,8 @@ int main(int argc, char** argv){
     glutCreateWindow("simple");
     glutDisplayFunc(display);
     glutIdleFunc(receiver);
+
+    last = time(0);
 
     init_gl();
     init_udp(htons(12345));
