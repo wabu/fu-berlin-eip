@@ -5,7 +5,8 @@
 #include "netconf.h"
 
 #define UDP_DATA_TYPE_RAW 1
-#define UDP_DATA_TYPE_CMP 2
+#define UDP_DATA_TYPE_CMPR 2
+#define UDP_DATA_TYPE_CMPR3 3
 
 
 // Payload = TYPE (1 byte) + FRAME_SEQ_ID (2 byte) + Line (1 byte) + one line camera pixel
@@ -22,6 +23,6 @@ extern unsigned char cmpTxBuff[UDP_CMP_PACKET_LENGTH];
 
 void udpBuildPacket(unsigned char txbuf[], unsigned short udp_payload);
 void udpCamTransmitter(chanend tx, chanend rx, streaming chanend cin);
-void udpCmprTransmitter(chanend tx, chanend rx, streaming chanend cin);
+void udpCmprTransmitter(chanend tx, chanend rx, streaming chanend cin, int type);
 void udpConnect(chanend tx);
 #endif

@@ -1,0 +1,105 @@
+\usepackage{ucs}
+\usepackage[utf8x]{inputenc}
+\usepackage{german}
+\usepackage{color}
+\usepackage{xcolor}
+\usepackage{url}
+\usepackage{graphicx}
+\usepackage{algorithmic}
+\usepackage{indentfirst}
+
+\usepackage[section]{placeins}
+
+\pagestyle{empty}
+\usepackage{float}
+\usepackage{makeidx}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb,euscript}
+\usepackage{dsfont}
+\usepackage{paralist}
+\usepackage{listings}
+\lstset{inputencoding=utf8x,
+        extendedchars=\true,
+        numbers=left, 
+        basicstyle=\footnotesize, 
+        emph={square}, 
+        emph={[2]root,base},
+        numberstyle=\footnotesize, 
+        tabsize=4,
+        stepnumber=5, 
+        numbersep=5pt, 
+        frame=b, 
+        framexleftmargin=5mm, 
+        xleftmargin=5mm,
+        escapeinside={@}{@}
+}
+
+\usepackage{caption}
+\DeclareCaptionFont{white}{\color{white}}
+\DeclareCaptionFormat{listing}{\colorbox{gray}{\parbox{\textwidth}{#1#2#3}}}
+\captionsetup[lstlisting]{format=listing,labelfont={bf,white},textfont={bf,white}}
+
+
+\usepackage{enumerate}
+\newfont{\Fr}{eufm10}
+\newfont{\Sc}{eusm10}
+\newfont{\Bb}{msbm10}
+\newcommand{\limin}{\lim_{n\rightarrow\infty}}
+\newcommand{\limix}{\lim_{x\rightarrow\infty}}
+\newcommand{\limun}{\lim_{n\rightarrow -\infty}}
+\newcommand{\limux}{\lim_{n\rightarrow -\infty}}
+\newcommand{\limx}{\lim_{x\rightarrow x_0}}
+\newcommand{\limh}{\lim_{h\rightarrow 0}}
+\newcommand{\defi}{\paragraph{Definition:}}
+\newcommand{\bew}{\paragraph{Beweis:}}
+\newcommand{\satz}{\paragraph{Satz:}}
+\newcommand{\bsp}{\paragraph{Beispiel:}}
+\newcommand{\lemma}{\paragraph{Lemma:}}
+\newcommand{\N}{\mathds{N}}
+\newcommand{\F}{\mathds{F}}
+\newcommand{\Z}{\mathds{Z}}
+\newcommand{\Q}{\mathds{Q}}
+\newcommand{\R}{\mathds{R}}
+\newcommand{\G}{\mathds{G}}
+\newcommand{\C}{\mathds{C}}
+\newcommand{\K}{\mathds{K}}
+\newcommand{\A}{\mathds{A}}
+\newcommand{\E}{\mathcal{E}}
+\renewcommand{\P}{\mathcal{P}}
+\newcommand{\sigA}{$\sigma$-Algebra }
+\newcommand{\qed}{$\hfill\blacksquare$}
+\newcommand{\arsinh}{\operatorname{arsinh} }
+\newcommand{\arcosh}{\operatorname{arcosh} }
+\newcommand{\gdw}{ $ \Leftrightarrow $ }
+\newcommand{\tf}{ $ \Rightarrow $ }
+\newcommand{\mgdw}{\Leftrightarrow}
+\newcommand{\mtf}{\Rightarrow}
+\newcommand{\Bild}{\text{Bild}}
+\newcommand{\Kern}{\text{kern}}
+\newcommand{\rg}{\text{rg}}
+\newcommand{\deff}{\text{deff}}
+
+\newcommand{\alphato}{\underset{\alpha}\to}
+\newcommand{\betato}{\underset{\beta}\to}
+\newcommand{\etato}{\underset{\eta}\to}
+\newcommand{\ito}{\underset{i}\to}
+\newcommand{\sto}{\underset{s}\to}
+\newcommand{\kto}{\underset{k}\to}
+\newcommand{\xto}{\underset{x}\to}
+
+\parindent 1em
+\parskip 0.5em
+
+
+\makeatletter 
+\renewcommand{\@makechapterhead}[1]{% 
+\vspace*{20 pt}% 
+{\setlength{\parindent}{0pt} \raggedright \normalfont 
+\bfseries\Huge\thechapter.\ #1 
+\par\nobreak\vspace{20 pt}}} 
+\makeatother 
+
+
+
+
