@@ -128,6 +128,7 @@ void decompress3(unsigned char* buf, int size) {
             switch (in) {
             case CMPR_FRAME_SYNC:
                 synced = 1;
+                printf("INFO codec synced\n");
             case CMPR_NEW_FRAME:
                 //printf("processing new frame\n");
                 cmpr_y=0;

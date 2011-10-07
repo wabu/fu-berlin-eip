@@ -44,7 +44,7 @@ int main()
     int w=VID_WIDTH;
     int h=VID_HEIGHT;
 
-	chan rx[2], tx[2];
+	chan rx[1], tx[1];
 	streaming chan camData;
 	streaming chan cmprData;
     streaming chan udpData;
@@ -71,12 +71,12 @@ int main()
 	cam_WriteRegValue(0x75, 0x00);
     tst_setup(w,h);
          
-    type = UDP_DATA_TYPE_CMPR;
+    type = UDP_DATA_TYPE_CMPR3;
 
     switch (type) {
     case UDP_DATA_TYPE_RAW:
         par {
-            ethernet_server(mii, portClk, mac_address, rx, 2, tx, 2, null,null);
+            ethernet_server(mii, portClk, mac_address, rx, 1, tx, 1, null,null);
 
             udpCamTransmitter(tx[0], rx[0], camData);
             cam_DataCapture(camData);
@@ -85,23 +85,23 @@ int main()
     case UDP_DATA_TYPE_CMPR:
         par
         {
-            ethernet_server(mii, portClk, mac_address, rx, 2, tx, 2, null,null);
+            ethernet_server(mii, portClk, mac_address, rx, 1, tx, 1, null,null);
 
-            udpCmprTransmitter(tx[1], rx[1], cmprData, type);
+            udpCmprTransmitter(tx[0], rx[0], cmprData, type);
             cmpr_encoder(camData, cmprData, w, h);
-            cam_DataCapture(camData);
-            //tst_run_debug_video(camData);
+            // cam_DataCapture(camData);
+            tst_run_debug_video(camData);
         }
         break;
     case UDP_DATA_TYPE_CMPR3:
         par
         {
-            ethernet_server(mii, portClk, mac_address, rx, 2, tx, 2, null,null);
+            ethernet_server(mii, portClk, mac_address, rx, 1, tx, 1, null,null);
 
-            udpCmprTransmitter(tx[1], rx[1], cmprData, type);
+            udpCmprTransmitter(tx[0], rx[0], cmprData, type);
             cmpr3_encoder(camData, cmprData, w, h);
-            //cam_DataCapture(camData);
-            //tst_run_debug_video(camData);
+            // cam_DataCapture(camData);
+            tst_run_debug_video(camData);
             //tst_run_frame_statistics(udpData,w,h);
         }
         break;

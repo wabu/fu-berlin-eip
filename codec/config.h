@@ -18,7 +18,7 @@
 #define CMPR_HVP_DEFAULT    PREVIOUS
 
 #ifndef CMPR_CHANGE_BIAS
-#define CMPR_CHANGE_BIAS    13
+#define CMPR_CHANGE_BIAS    0
 #endif
 
 #ifndef SUB_SAMPLERATE
