@@ -1,11 +1,11 @@
 
 \chapter{Implementierung}
-Hier die Implementierung
+<+Hier die Implementierung+>
 
 \section{Funktionen fuer Tests und Ueberpruefungen}
 Um unsere Ansaetze und Implementation analysieren und testen zu koennen,
 haben wir Test-Funktionen fuer Videodaten, die ueber Channel transportiert
-werden geschrieben.
+werden, geschrieben.
 
 Dies Funktionen befinden sich in \verb@board/video/test.xc@.
 
@@ -22,13 +22,15 @@ Teststream analysieren werden.
 Fuer erste Tests gibt die Funktion \lstinline@tst_run_debug_output@ die
 Videodaten aus einem Channel ueber den JTAG-Link in die Standardausgabe aus.
 Diese einfach und sichere Ausgabe der Videodaten reicht, um Fehler
-festzustellen.
+festzustellen. 
+Sie ist allerdings relative langsam und die Darstellung als Zahlen und Buchstaben
+ungenau und nicht intuitiv erfassbar.
 
 \subsection{Videodaten Analyse}
 Die Funktion \lstinline@tst_run_frame_statistics@ ueberprueft die Konsistenz des
 Videos und gibt die Frame-Rate in die Standartdausgabe aus.
 
-Syntaxfehler im Videodaten-Format und das Fehlen von Pixel oder Lines 
+Syntaxfehler im Videodaten-Format und das Fehlen von Pixel oder Zeilen 
 werden festgestellt und Performce-Tests koennen mit dieser Funkton durchgefuerht
 werden.
 
@@ -38,11 +40,68 @@ Zur Analyse comprimierter Video-Daten schriebt die Funktion
 Hexadecimal-Darstellung in die Standardausgabe.
 
 
+
 \section{Video-Kompression}
 
+Wir haben den Kompressions/Dekompressions-Algorithmus in C implementiert.
+
+Da dieser nun sowohl auf dem XMOS Board wie auch auf dem empfangenden Rechner 
+verwendet wird, ist somit die Konsistenz zwischen diesen Komponenten sichergestellt.
+
+Zum anderen konnten wir durch die Verwendung von C-Pointern Code sowohl zwischen 
+De- und Encoder wie auch zwischen 2D- und 3D-Komprimierung wiederverwenden,
+wodurch wir Wiederhohlungen im Quelltext vermeiden konnten.
+
+\subsection{Schritte}
+Sowohl En- wie Decodierung fuer 2D und 3D haben den gleichen Aufbau.
+Die Funktionen \lstinline@cmpr_start_frame@ und \lstinline@cmpr_start_line@
+setzen die Standard-Werte als Referenz-Werte und setzen Laufvariablen zuruck.
+
+Fuer die Codierung jedes Pixels werden jeweils folgende Schritte durchlaufen:
+\begin{itemize}
+\item alle Referenz-Werte fuer den aktuellen Pixel aus Speicher des Codecs laden 
+      und fuer Encodierung deren Distanz zum echten Pixelwert berechnen
+	(\lstinline@cmpr_context_load@)
+\item Auswahl der besten Richtung anhand der Distanz bzw. Benutzung
+      der kodierten Richtung, um Werte auszuwahlen.
+	(\lstinline@cmpr_context_select_dir@)
+\item den Aenderungswert ($c$) anpassen
+	(\lstinline@cmpr_context_update_c@)
+\item berechnete Werte ($b$ und $c$) im Speicher des Coders setzen, sodass diese 
+      fuer spaeter folgende Pixel benutzt werden koennen
+	(\lstinline@cmpr_context_store@)
+\end{itemize}
+
+Bei der Encodierung muessen die Entscheidungen zuruckgegeben werden,
+bei dier Decodierung werden diese Infomationen benutzt, um den Pixelwert zu 
+rekonstroieren. 
+
+Wir verwenden RLE fuer die Uebertragung der Richtung bei der 3D Variante,
+was zu einen weitern Verarbeitungschritt nach abgeschlossener Zeile fuehrt.
+Auch wird hier wegen Speicherknappheit fuer die Referenzwerte des vorherigen Bildes
+Subsampling verwendet.
+
+\subsection{Benutzung}
+Ein Benutzung der Kompression befindet sich z.B. in \verb@board/video/compress.c@.
+
+Nach der Inizialisierung durch \lstinline@cmpr_init@ 
+wird der Kodierungsprozess mit \lstinline@cmpr_start_frame@ und
+\lstinline@cmpr_start_line@ vorbereitet.
+
+Bei der 2D Variante kann nun Pixel fuer Pixel nun mit 
+\lstinline@cmpr_enc@ bzw. \lstinline@cmpr_dec@ en/decodiert werden.
+
+Bei der 3D Variante mit RLE muessen zunaechst die Pixelwerte fuer eine Zeile mit
+\lstinline@cmpr3_enc_push@ an den Kodierer gegeben werden, anschliessend 
+koennen die Kodierten $c$ und $d$ Werte fuer die Zeile 
+mit \lstinline@cmpr3_enc_get_cs@ bzw. \lstinline@cmpr3_enc_get_dirs@ ausgelesen werden.
+Bei der Decodierung werden diese mit \lstinline@cmpr3_dec_push_cs@ und 
+\lstinline@cmpr3_dec_push_dir@ uebergeben, woraufhin die Pixelwerte
+fuer eine Zeile mit \lstinline@cmpr3_dec_pull@ ausgelesen werden koennen.
 
 \section{Running the combined Sutff}
 
+\subsection{Chaning Parameters and Stuff}
 
 \section{basic usage}
 wie benutzen
