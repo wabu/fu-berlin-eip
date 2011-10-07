@@ -26,7 +26,7 @@ Details on the codec can be found in the comments inside "codec/codec.c"
   mk/
 
 The "codec/" directory contains the implementation of the compression method.
-The codec code is written to be run both on the xmos board an a normal PC.
+The codec code is written to be run both on the xmos board and a normal PC.
 
 The "receiver/" directory contains the app for receiving, decompressing and
 rendering the video stream. It uses gl as an rendering backend and relies on
@@ -46,9 +46,9 @@ The "mk/" directory contains Makefile instructions for this project.
 
 == Build ==
 We use custom Makefiles to build our project. It was tested inside linux
-environments, but should work with some customistation on other systems.
+environments, but should work with some customisation on other systems.
 
-=== Prerequierments ===
+=== Prerequirements ===
 You must have installed the Xmos Development tools, a running build-chain for
 the host system with the gl and glut libraries installed.
 
@@ -56,7 +56,7 @@ the host system with the gl and glut libraries installed.
 Edit the config.mk for your system. 
 
 To change the compression parameters and address of the receiving host, you
-have to edit the sourcefiles in "board/video/".
+have to edit the sources in "board/video/".
 
 === Compilation and Running it ===
 Make sure that you sourced SetEnv from the Xmos Development Tools in your shell.
