@@ -6,6 +6,7 @@
  */
 #include <xclib.h>
 #include <platform.h>
+#include <config.h>
 #include "cam.h"
 #include "i2c.h"
 #include <delays.h>

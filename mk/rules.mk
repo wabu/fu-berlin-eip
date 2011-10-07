@@ -3,7 +3,7 @@
 CLEAN += $(BIN:=.clean) $(BIN:=.o.clean) $(LIB:=.a.clean) $(SHR:=.so.clean) $(SRC:=.o.clean)
 
 # compile c files
-%.o:	%.c  $(INC:=.h) $(HDR:=.h)
+%.o:	%.c  $(INC:=.h) $(HDR:=.h) $(ROOT)/config.h
 	echo "CC $<"
 	$(CC) $(CFLAGS) -c $< -o $@
 

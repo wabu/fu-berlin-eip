@@ -13,7 +13,7 @@
 #include <i2c.h>
 /* our codec implementation  */
 #include <config.h>
-#include "compress.h"
+#include "format.h"
 #include "netconf.h"
 #include "test.h"
 #include "udp.h"

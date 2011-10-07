@@ -8,8 +8,8 @@
 #ifndef CAM_H_
 #define CAM_H_
 
-#define CAM_PIXEL_WIDTH 160
-#define CAM_PIXEL_HEIGHT 120
+#define CAM_PIXEL_WIDTH  VID_WIDTH
+#define CAM_PIXEL_HEIGHT VID_HEIGHT
 
 // Kammerageschwindigkeit
 // Kamerafrequenz = 100MHz / CAM_FREQ_DIV; (CAM_FREQ_DIV = 4,6,8,10...)

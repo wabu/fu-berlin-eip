@@ -1,19 +1,3 @@
-#define VID_NEW_FRAME 0xFEFEFEFE
-#define VID_NEW_LINE  0xFFFFFFFF
-
-#ifndef VID_WIDTH
-#define VID_WIDTH     160
-#endif
-
-#ifndef VID_HEIGHT
-#define VID_HEIGHT    120
-#endif
-
-#define CMPR_ESCAPE     0xFF
-#define CMPR_NEW_LINE   0xFE
-#define CMPR_NEW_FRAME  0xFD
-#define CMPR_FRAME_SYNC 0xFF
-
 #define chan_init(name, type, chan) \
     type __##name##_##chan##_type = 0; \
     type __##name##_##chan##_store = 0; \

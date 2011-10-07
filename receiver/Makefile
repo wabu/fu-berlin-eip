@@ -6,7 +6,7 @@ BIN = main
 INC = 
 SRC = 
 
-USE = codec
+USE = codec videfs
 
 LIBARGS += -lGL -lglut
 

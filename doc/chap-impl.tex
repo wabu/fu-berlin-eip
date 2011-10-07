@@ -1,52 +1,187 @@
 
 \chapter{Implementierung}
-Hier die Implementierung
 
-\section{Funktionen fuer Tests und Ueberpruefungen}
-Um unsere Ansaetze und Implementation analysieren und testen zu koennen,
-haben wir Test-Funktionen fuer Videodaten, die ueber Channel transportiert
-werden geschrieben.
+Neben dem Kern des Projektes, dem Kompressions-Algorithmus, 
+haben wir Module zum Ausführen der Kompression und Übertragen der Daten,
+zum Testen und Analysieren und zur Darstellung des Videostreams am Rechner
+implementiert und unsere Module mit den Beispielcode für Camera und Netzwerk
+zusammengesetzt.
 
-Dies Funktionen befinden sich in \verb@board/video/test.xc@.
+Hier wird eine Übersicht über die Aufgaben der Module gegeben und 
+kurz deren Funktionsweise und wichtigen Schnittstellen beschrieben.
+Weiter Details können aus dem strukturierten und an wichtigen Stellen
+dokumentierten Quelltext gezogen werden.
+
+Informationen zur Kompilation und Ausführung befinden sich in der dem 
+Projekt beiliegenden \verb@README.txt@.
+
+\section{Funktionen für Tests und Überprüfungen}
+Um unsere Ansätze und Implementation analysieren und testen zu können,
+haben wir Test-Funktionen für Videodaten, die über Channel transportiert
+werden, geschrieben.
+
+Dies Funktionen befinden sich in \verb@board/test/@.
 
 \subsection{Generierter Videostream}
 Die Funktion \lstinline@tst_run_debug_video@ gibt an einen Channel ein Test-Video aus,
-indem sich ein Viereck ueber grauen Hintergrund bewegt.
-Die Breite und Hoehe des generierten Videos kann mit dem vorherigen Aufruf von
+indem sich ein Viereck über grauen Hintergrund bewegt.
+Die Breite und Höhe des generierten Videos kann mit dem vorherigen Aufruf von
 \lstinline@tst_setup@ bestimmt werden. 
 
-Somit koennen Methoden schnell und leicht auf dem kleinen, einfachen
+Somit können Methoden schnell und leicht auf dem kleinen, einfachen
 Teststream analysieren werden.
 
 \subsection{Videodaten Ausgabe}
-Fuer erste Tests gibt die Funktion \lstinline@tst_run_debug_output@ die
-Videodaten aus einem Channel ueber den JTAG-Link in die Standardausgabe aus.
+Für erste Tests gibt die Funktion \lstinline@tst_run_debug_output@ die
+Videodaten aus einem Channel über den JTAG-Link in die Standardausgabe aus.
 Diese einfach und sichere Ausgabe der Videodaten reicht, um Fehler
-festzustellen.
+festzustellen. 
+Sie ist allerdings relative langsam und die Darstellung als Zahlen und Buchstaben
+ungenau und nicht intuitiv erfassbar.
 
 \subsection{Videodaten Analyse}
-Die Funktion \lstinline@tst_run_frame_statistics@ ueberprueft die Konsistenz des
-Videos und gibt die Frame-Rate in die Standartdausgabe aus.
+Die Funktion \lstinline@tst_run_frame_statistics@ überprüft die Konsistenz des
+Videos und gibt die Frame-Rate in die Standardausgabe aus.
 
-Syntaxfehler im Videodaten-Format und das Fehlen von Pixel oder Lines 
-werden festgestellt und Performce-Tests koennen mit dieser Funkton durchgefuerht
+Syntaxfehler im Videodaten-Format und das Fehlen von Pixel oder Zeilen 
+werden festgestellt und Performce-Tests können mit dieser Funktion durchgeführt
 werden.
 
-\subsection{Channeldaten Ausgabe}
-Zur Analyse comprimierter Video-Daten schriebt die Funktion 
+\subsection{Channel-Daten Ausgabe}
+Zur Analyse komprimierten Video-Daten schriebt die Funktion 
 \lstinline@tst_run_dump_stream@ alle Daten eines Streams in
-Hexadecimal-Darstellung in die Standardausgabe.
+Hexadezimal-Darstellung in die Standardausgabe.
 
 
 \section{Video-Kompression}
 
+Wir haben den Kompressions-/Dekompressions-Algorithmus in C implementiert.
 
-\section{Running the combined Sutff}
+Da dieser nun sowohl auf dem XMOS Board wie auch auf dem empfangenden Rechner 
+verwendet wird, ist somit die Konsistenz zwischen diesen Komponenten sichergestellt.
+
+Zum Anderen konnten wir durch die Verwendung von C-Pointern Code sowohl zwischen 
+De- und Encoder wie auch zwischen 2D- und 3D-Komprimierung wiederverwenden,
+wodurch wir Wiederholungen im Quelltext vermeiden konnten.
+
+\subsection{Funktionsweise}
+Sowohl En- wie Decodierung für 2D und 3D haben den gleichen Aufbau.
+Die Funktionen \lstinline@cmpr_start_frame@ und \lstinline@cmpr_start_line@
+setzen die Standard-Werte als Referenz-Werte und setzen Laufvariablen zurück.
+
+Für die Codierung jedes Pixels werden jeweils folgende Schritte durchlaufen:
+\begin{itemize}
+\item alle Referenz-Werte für den aktuellen Pixel aus Speicher des Codecs laden 
+      und für Encodierung deren Distanz zum echten Pixelwert berechnen
+	(\lstinline@cmpr_context_load@)
+\item Auswahl der besten Richtung anhand der Distanz bzw. Benutzung
+      der kodierten Richtung, um Werte auszuwählen.
+	(\lstinline@cmpr_context_select_dir@)
+\item den Änderungswert ($c$) anpassen
+	(\lstinline@cmpr_context_update_c@)
+\item berechnete Werte ($b$ und $c$) im Speicher des Coders setzen, sodass diese 
+      als Referenz für später folgende Pixel benutzt werden können
+	(\lstinline@cmpr_context_store@)
+\end{itemize}
+
+Bei der Encodierung werden getroffenen Entscheidungen kodiert und zurückgegeben,
+bei der Decodierung werden diese Informationen benutzt, um den Pixelwert zu rekonstruieren
+und zurückzugeben. 
+
+Wir verwenden RLE für die Übertragung der Richtung bei der 3D Variante,
+was zu einen weitern Verarbeitungsschritt nach einer abgeschlossener Zeile führt.
+Auch wird hier wegen Speicherknappheit für die Referenzwerte des vorherigen Bildes
+Subsampling verwendet.
+
+\subsection{Benutzung der Schnittstellen}
+Ein Benutzung der Kompression befindet sich z.B. in \verb@board/video/compress.c@.
+
+Nach der Initialisierung durch \lstinline@cmpr_init@ 
+wird der Kodierungsprozess mit \lstinline@cmpr_start_frame@ und
+\lstinline@cmpr_start_line@ vorbereitet.
+
+Bei der 2D Variante kann nun Pixel für Pixel nun mit 
+\lstinline@cmpr_enc@ bzw. \lstinline@cmpr_dec@ en/decodiert werden.
+
+Bei der 3D Variante mit RLE müssen zunächst die Pixelwerte für eine Zeile mit
+\lstinline@cmpr3_enc_push@ an den Codierer gegeben werden, anschliessend 
+können die kodierten $c$ und $d$ Werte für die Zeile 
+mit \lstinline@cmpr3_enc_get_cs@ bzw. \lstinline@cmpr3_enc_get_dirs@ ausgelesen werden.
+Bei der Decodierung werden diese mit \lstinline@cmpr3_dec_push_cs@ und 
+\lstinline@cmpr3_dec_push_dir@ übergeben, woraufhin die Pixelwerte
+für eine Zeile mit \lstinline@cmpr3_dec_pull@ ausgelesen werden können.
 
 
-\section{basic usage}
-wie benutzen
 
-\section{spezielles}
-keine ahnung?
+\section{Zusammensetzen und Ausführung}
+
+Die Aufteilung des Projekts in Module ist in der Abbildung \ref{mod} dargestellt.
+Stream-Transmitter bzw. Receiver führen jeweils die Funktionen zusammen,
+um den Videostream zu aufzunehmen, kodieren und versenden bzw. 
+empfangen, dekodieren und darzustellen.
+
+\begin{verbatim}
+./
+  codec/
+  videfs/
+  receiver/
+  board/
+    chksm/
+    compat/
+    common/
+    net/
+    cam/
+    test/
+    stream-transmitter/
+  mk/
+\end{verbatim}
+<+Abbildung: Übersicht der Module+>
+
+\verb@codec@ enthält den in C implementierten Kompressions-Algorithmus,
+in \verb@videfs@ sind Parameter für die Komprimierung und das Video festgelegt.
+Die Video-Darstellung für das Hostsystem befindet sich in \verb@receiver@.
+In dem \verb@board@ Ordner befindet sich der Quelltext spezifisch für das XMOS Board.
+
+\verb@common@, \verb@chksum@ und \verb@compat@ enthalten einfach Funktionen,
+die von anderen Modulen verwendet werden. 
+Das \verb@net@-Module enthält den ethernet Code für den XMOS Chip,
+\verb@cam@ das Kamera-Modul.
+Unsere Test-Funktionen befinden sich in \verb@test@. Zusammengesetzt
+werden dies Funktionen in dem \verb@stream-transmitter@-Modul.
+
+\subsection{Receiver}
+Der Receiver benutzt zur graphischen Darstellung \verb@gl@, 
+wobei die \verb@glut@-Bibliothek verwendet wird um ein Fenster zu öffnen.
+
+Die über einen UDP-Socket empfangenen Daten werden in der \lstinline@receiver@
+Funktion analysiert und entsprechend des Packet-Headers decodiert. 
+Sobald ein Frame abgeschlossen ist, wird die dargestellte \verb@gl@-Graphik 
+erneuert.
+
+\subsection{Benutzung von Kamera und Netzwerk}
+Wir haben den vorhanden Quelltext für Kamera und Netzwerk in dem Projekt
+verwendet. Allerdings musste dieser noch korrigiert und angepasst werden.
+
+So sendete z.B. das Kameramodul die Video-Daten nicht in dem vereinbartem Format
+über den Channel. Auch die Frequenz für das Kameramodul muss je nach
+Rechenbelastung auf dem Chip angepasst werden.
+
+Um den Video-Stream versenden zu können, benutzen wir spezielle Header in den
+UDP-Packeten. Dazu haben wir den Netzwerkcode in der \verb@udb.xc@ Datei
+entsprechend anpasst.
+
+\subsection{Kodierung wählen und Parameter anpassen}
+
+Die Art der Kodierung kann in der \verb@main.xc@ im Ordner
+\verb@board\streaming-transmitter@ angepasst werden. Da jede Kodierung
+eigene Packet-Header besitzt, kann der Receiver weiterlaufen, während sich
+die Art der Kodierung ändert.
+
+In der \verb@main.xc@ kann auch statt dem Kamerabild das Test-Video verwendet
+werden.
+
+Andere Parameter werden in der \verb@videfs/config.h@ verändert, 
+wonach sowohl Receiver wie auch Transmitter neu compiliert werden müssen.
+
+
 

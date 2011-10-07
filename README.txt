@@ -16,24 +16,24 @@ Details on the codec can be found in the comments inside "codec/codec.c"
   receiver/
   board/
     chksm/
-    video/
     compat/
     common/
     test/
     net/
     cam/
+    stream-transmitter/
   mathlab/
   mk/
 
 The "codec/" directory contains the implementation of the compression method.
-The codec code is written to be run both on the xmos board an a normal PC.
+The codec code is written to be run both on the xmos board and a normal PC.
 
 The "receiver/" directory contains the app for receiving, decompressing and
 rendering the video stream. It uses gl as an rendering backend and relies on
 glut for basic application setup.
 
 The "board/" directory contains all the code specific for the xmos board.
-The main application is inside the "video/", putting together camera,
+The main application is inside the "stream-transmitter/", putting together camera,
 compression and network code.
 
 The "mathlab/" directory contains prototypes of the compression methods
@@ -46,9 +46,9 @@ The "mk/" directory contains Makefile instructions for this project.
 
 == Build ==
 We use custom Makefiles to build our project. It was tested inside linux
-environments, but should work with some customistation on other systems.
+environments, but should work with some customisation on other systems.
 
-=== Prerequierments ===
+=== Prerequirements ===
 You must have installed the Xmos Development tools, a running build-chain for
 the host system with the gl and glut libraries installed.
 
@@ -56,13 +56,13 @@ the host system with the gl and glut libraries installed.
 Edit the config.mk for your system. 
 
 To change the compression parameters and address of the receiving host, you
-have to edit the sourcefiles in "board/video/".
+have to edit the sources in "board/stream-transmitter/".
 
 === Compilation and Running it ===
 Make sure that you sourced SetEnv from the Xmos Development Tools in your shell.
 To compile the project, type xmake/make on the command line.
 
-After the build has finished, you can run the board/video/main.xe on the xmos
+After the build has finished, you can run the board/stream-transmitter/main.xe on the xmos
 chip with xrun and ./receiver/main on the host.
 
 

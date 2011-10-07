@@ -3,10 +3,11 @@ SELF = codec
 NAME = codec
 
 LIB = libcmpr
-HDR = config codec
-INC = config codec
+HDR = codec
+INC = codec
 SRC = codec
+USE = videfs
 
-include ${ROOT}/mk/common.mk
+include ${ROOT}/mk/use.mk
 include ${ROOT}/mk/xmos.mk
 include ${ROOT}/mk/rules.mk
